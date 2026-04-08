@@ -1,0 +1,26 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      - SECRET_KEY=your-secret-key
+      - DEBUG=False
+      - ALLOWED_HOSTS=*
+    volumes:
+      - ./backend:/app       # sqlite db persists
+    restart: always
+
+  frontend:
+    build: ./frontend
+    volumes:
+      - frontend_build:/dist
+
+  nginx:
+    build: ./nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always
+
+volumes:
+  frontend_build:
