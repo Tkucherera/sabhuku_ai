@@ -4,6 +4,8 @@ import { Brain, Mail, Lock, User } from "lucide-react";
 
 import { registerUser } from "../api/authApi";
 
+import { useAuth } from "./AuthContext";
+
 export function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -14,14 +16,17 @@ export function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { login } = useAuth();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     // Mock registration - redirect to dashboard'
     setLoading(true);
     setError(null);
     try {
-      await registerUser({name, email, password1, password2});
-      navigate("/dashboard");
+      const data = await registerUser({name, email, password1, password2});
+      login(data.access);
+      navigate("/profile");
     } catch (e: unknown){
       // TODO need to actually show error from backend. 
       setError("Signup failed. Try again")
