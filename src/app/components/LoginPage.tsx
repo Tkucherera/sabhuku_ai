@@ -2,15 +2,26 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Brain, Mail, Lock } from "lucide-react";
 
+import { loginUser } from "../api/authApi";
+import { useAuth } from "./AuthContext";
+ 
 export function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [username, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const { login } = useAuth();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock authentication - redirect to dashboard
-    navigate("/dashboard");
+    try {
+      const data = await loginUser({username, password});
+      login(data.access);
+      navigate("/dashboard");
+    } catch (error: unknown){
+      console.log(error);
+      console.log("Failed to login");
+    }
   };
 
   return (
@@ -21,7 +32,7 @@ export function LoginPage() {
           <div className="text-center mb-8">
             <Link to="/" className="inline-flex items-center gap-2 mb-6">
               <Brain className="w-10 h-10 text-blue-600" />
-              <span className="font-bold text-2xl">SADC AI Hub</span>
+              <span className="font-bold text-2xl">SABHUKU AI</span>
             </Link>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h2>
             <p className="text-gray-600">Sign in to access your AI workspace</p>
@@ -29,15 +40,15 @@ export function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
                 Email address
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   id="email"
-                  type="email"
-                  value={email}
+                  type="username"
+                  value={username}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="you@example.com"

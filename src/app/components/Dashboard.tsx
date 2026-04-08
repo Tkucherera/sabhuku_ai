@@ -4,6 +4,9 @@ import { Link } from "react-router";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 
 export function Dashboard() {
+
+  
+
   const recentModels = [
     {
       id: 1,

@@ -2,16 +2,32 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Brain, Mail, Lock, User } from "lucide-react";
 
+import { registerUser } from "../api/authApi";
+
 export function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [password1, setPassword1] = useState("");
+  const [password2, setPassword2] = useState("");
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock registration - redirect to dashboard
-    navigate("/dashboard");
+    // Mock registration - redirect to dashboard'
+    setLoading(true);
+    setError(null);
+    try {
+      await registerUser({name, email, password1, password2});
+      navigate("/dashboard");
+    } catch (e: unknown){
+      // TODO need to actually show error from backend. 
+      setError("Signup failed. Try again")
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -22,13 +38,18 @@ export function SignupPage() {
           <div className="text-center mb-8">
             <Link to="/" className="inline-flex items-center gap-2 mb-6">
               <Brain className="w-10 h-10 text-blue-600" />
-              <span className="font-bold text-2xl">SADC AI Hub</span>
+              <span className="font-bold text-2xl">SABHUKU AI</span>
             </Link>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Create your account</h2>
             <p className="text-gray-600">Start building AI solutions today</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {error && <p className="text-red-500">{error}</p>}
+
+            <button disabled={loading}>
+              {loading ? "Creating..." : "Create account"}
+            </button>
             <div>
               <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                 Full name
@@ -74,8 +95,28 @@ export function SignupPage() {
                 <input
                   id="password"
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={password1}
+                  onChange={(e) => setPassword1(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Create a strong password"
+                  required
+                  minLength={8}
+                />
+              </div>
+              <p className="mt-1 text-xs text-gray-500">Must be at least 8 characters</p>
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  id="password2"
+                  type="password"
+                  value={password2}
+                  onChange={(e) => setPassword2(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Create a strong password"
                   required

@@ -2,9 +2,20 @@ import { useState } from "react";
 import { PlatformLayout } from "./PlatformLayout";
 import { Star, Download, TrendingUp, Filter, Search } from "lucide-react";
 
+import { useModels } from "../../hooks/useModels";
+import { Model } from "../../types";
+
+
 export function ModelsPage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+
+  const {data, loading } = useModels();
+
+  if (loading) return <p>Loading</p>;
+
+  
+
 
   const categories = [
     { id: "all", name: "All Models", count: 487 },
@@ -14,7 +25,11 @@ export function ModelsPage() {
     { id: "multimodal", name: "Multimodal", count: 67 },
   ];
 
-  const models = [
+
+
+  const models: Array<Model> = data;
+  /*
+  [
     {
       id: 1,
       name: "Shona-GPT-7B",
@@ -88,6 +103,7 @@ export function ModelsPage() {
       updated: "1 day ago",
     },
   ];
+  */
 
   const filteredModels = models.filter((model) => {
     const matchesCategory = selectedCategory === "all" || model.category === selectedCategory;
@@ -150,7 +166,7 @@ export function ModelsPage() {
         <div className="grid md:grid-cols-2 gap-6">
           {filteredModels.map((model) => (
             <div
-              key={model.id}
+              key={model.id.toString()}
               className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-shadow cursor-pointer"
             >
               <div className="flex items-start justify-between mb-3">
@@ -164,7 +180,7 @@ export function ModelsPage() {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600 mb-1">{model.author}</p>
+                  <p className="text-sm text-gray-600 mb-1">{model.author.toString()}</p>
                 </div>
                 <button className="p-2 hover:bg-gray-100 rounded-lg">
                   <Star className="w-5 h-5 text-gray-400" />
@@ -192,7 +208,7 @@ export function ModelsPage() {
                   </span>
                   <span className="flex items-center gap-1">
                     <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                    {model.likes}
+                    {model.likes.toString()}
                   </span>
                   <span className="text-gray-500">• {model.updated}</span>
                 </div>

@@ -11,7 +11,7 @@ export function LandingPage() {
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-2">
               <Brain className="w-8 h-8 text-blue-600" />
-              <span className="font-bold text-xl">SADC AI Hub</span>
+              <span className="font-bold text-xl">SABHUKU AI</span>
             </div>
             <div className="hidden md:flex items-center gap-8">
               <a href="#services" className="text-gray-700 hover:text-blue-600">Services</a>
@@ -36,10 +36,10 @@ export function LandingPage() {
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
               <div className="inline-block bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-medium mb-6">
-                🇿🇼 Powering Zimbabwe & SADC with AI
+                🇿🇼 Powering Zimbabwe & beyond with AI
               </div>
               <h1 className="text-5xl font-bold text-gray-900 mb-6 leading-tight">
-                AI Models & Data Solutions for <span className="text-blue-600">Southern Africa</span>
+                AI Models & Data Solutions for <span className="text-blue-600"> Africa and Beyond</span>
               </h1>
               <p className="text-xl text-gray-600 mb-8">
                 Advanced AI model development, comprehensive data warehousing, learning resources, and training platforms tailored for Zimbabwe and the SADC region.
@@ -220,7 +220,7 @@ export function LandingPage() {
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <Brain className="w-6 h-6 text-blue-400" />
-                <span className="font-bold text-white">SADC AI Hub</span>
+                <span className="font-bold text-white">SABHUKU AI</span>
               </div>
               <p className="text-sm">
                 Empowering Zimbabwe and SADC with AI and data solutions.
@@ -256,7 +256,7 @@ export function LandingPage() {
           </div>
           
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
-            <p>© 2026 SADC AI Hub. All rights reserved.</p>
+            <p>© 2026 SABHUKU AI. All rights reserved.</p>
           </div>
         </div>
       </footer>
