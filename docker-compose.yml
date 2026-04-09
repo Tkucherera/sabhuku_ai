@@ -42,7 +42,7 @@ services:
   nginx:
       build: ./nginx
       ports:
-        - "80:80"
+        - "127.0.0.1:8081:80"
       volumes:
         - frontend_build:/usr/share/nginx/html
       depends_on:
