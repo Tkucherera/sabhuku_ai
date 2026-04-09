@@ -8,3 +8,5 @@
 6. Building Community (University, Independent Researchers, Collaborators, Coporates )
 7. Reaching to Coporates for support (Joining the community, Support with Cloud )
 8. Use Policies (Legal -for the future)
+
+9. Create a test bucket and levels

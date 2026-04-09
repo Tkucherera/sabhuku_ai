@@ -1,5 +1,5 @@
 import { Link } from "react-router";
-import { Database, Brain, BookOpen, Globe, BarChart3, Users, ArrowRight, CheckCircle } from "lucide-react";
+import { Database, Brain, BookOpen, Users, ArrowRight, CheckCircle, Sparkles, MessageSquareHeart, ShieldCheck } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 
 export function LandingPage() {
@@ -14,9 +14,9 @@ export function LandingPage() {
               <span className="font-bold text-xl">SABHUKU AI</span>
             </div>
             <div className="hidden md:flex items-center gap-8">
-              <a href="#services" className="text-gray-700 hover:text-blue-600">Services</a>
-              <a href="#about" className="text-gray-700 hover:text-blue-600">About</a>
-              <a href="#features" className="text-gray-700 hover:text-blue-600">Features</a>
+              <a href="#services" className="text-gray-800 font-semibold hover:text-blue-600">Services</a>
+              <a href="#about" className="text-gray-800 font-semibold hover:text-blue-600">About</a>
+              <a href="#features" className="text-gray-800 font-semibold hover:text-blue-600">Features</a>
             </div>
             <div className="flex items-center gap-3">
               <Link to="/login" className="text-gray-700 hover:text-blue-600 px-4 py-2">
@@ -31,36 +31,98 @@ export function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-50 to-indigo-50">
+      <section className="relative overflow-hidden pt-32 pb-20 px-4 sm:px-6 lg:px-8 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_28%),radial-gradient(circle_at_80%_20%,_rgba(34,197,94,0.12),_transparent_24%),linear-gradient(135deg,_#f5f9ff_0%,_#eef4ff_45%,_#f7fbff_100%)]">
+        <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "linear-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px)", backgroundSize: "42px 42px" }} />
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div>
-              <div className="inline-block bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-medium mb-6">
-                🇿🇼 Powering Zimbabwe & beyond with AI
+            <div className="relative z-10">
+              <div className="inline-flex items-center gap-2 bg-white/80 text-blue-800 px-4 py-2 rounded-full text-sm font-semibold mb-6 shadow-sm ring-1 ring-blue-100">
+                <Sparkles className="w-4 h-4" />
+                AI infrastructure, local intelligence, open contribution
               </div>
-              <h1 className="text-5xl font-bold text-gray-900 mb-6 leading-tight">
-                AI Models & Data Solutions for <span className="text-blue-600"> Africa and Beyond</span>
+              <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-slate-950 mb-6 leading-[1.02]">
+                Build, share, and deploy
+                <span className="text-blue-600"> AI models and datasets </span>
+                with a community rooted in Africa.
               </h1>
-              <p className="text-xl text-gray-600 mb-8">
-                Advanced AI model development, comprehensive data warehousing, learning resources, and training platforms tailored for Zimbabwe and the SADC region.
+              <p className="text-xl text-slate-600 mb-8 max-w-2xl">
+                SABHUKU AI is a platform for practical AI solutions and a growing developer community. Discover models, contribute datasets, collaborate on real use cases, and build systems shaped by local context and global standards.
               </p>
+              <div className="grid sm:grid-cols-3 gap-3 mb-8">
+                <div className="rounded-2xl bg-white/85 border border-blue-100 px-4 py-4 shadow-sm">
+                  <div className="text-sm font-semibold text-slate-900">Model Hub</div>
+                  <div className="text-sm text-slate-600 mt-1">Publish and discover reusable AI building blocks.</div>
+                </div>
+                <div className="rounded-2xl bg-white/85 border border-emerald-100 px-4 py-4 shadow-sm">
+                  <div className="text-sm font-semibold text-slate-900">Dataset Commons</div>
+                  <div className="text-sm text-slate-600 mt-1">Curate data that helps teams train better systems.</div>
+                </div>
+                <div className="rounded-2xl bg-white/85 border border-slate-200 px-4 py-4 shadow-sm">
+                  <div className="text-sm font-semibold text-slate-900">Developer Community</div>
+                  <div className="text-sm text-slate-600 mt-1">Learn, contribute, and ship together.</div>
+                </div>
+              </div>
               <div className="flex flex-wrap gap-4">
-                <Link to="/signup" className="bg-blue-600 text-white px-8 py-4 rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                <Link to="/signup" className="bg-blue-600 text-white px-8 py-4 rounded-xl hover:bg-blue-700 flex items-center gap-2 shadow-lg shadow-blue-200/60">
                   Start Building
                   <ArrowRight className="w-5 h-5" />
                 </Link>
-                <Link to="/login" className="bg-white text-gray-900 px-8 py-4 rounded-lg hover:bg-gray-50 border border-gray-300">
+                <a href="#support" className="bg-white text-gray-900 px-8 py-4 rounded-xl hover:bg-gray-50 border border-gray-300">
+                  Get Support
+                </a>
+                <Link to="/login" className="bg-white text-gray-900 px-8 py-4 rounded-xl hover:bg-gray-50 border border-gray-300">
                   Explore Platform
                 </Link>
               </div>
             </div>
-            <div className="relative">
-              <div className="rounded-2xl overflow-hidden shadow-2xl">
+            <div className="relative z-10">
+              <div className="absolute -left-6 top-8 hidden md:flex rounded-2xl bg-slate-950 text-white px-4 py-3 shadow-xl">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.24em] text-slate-400">Community signal</div>
+                  <div className="text-sm font-semibold mt-1">Models + data + builders in one place</div>
+                </div>
+              </div>
+              <div className="absolute -right-5 bottom-8 hidden md:flex rounded-2xl bg-white px-4 py-3 shadow-xl ring-1 ring-slate-200">
+                <div className="flex items-start gap-3">
+                  <ShieldCheck className="w-5 h-5 text-emerald-600 mt-0.5" />
+                  <div>
+                    <div className="text-sm font-semibold text-slate-900">Built for real deployment</div>
+                    <div className="text-xs text-slate-500">From experimentation to production-ready assets</div>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-[28px] overflow-hidden shadow-2xl ring-1 ring-white/70">
                 <ImageWithFallback
                   src="https://images.unsplash.com/photo-1650357519740-c888919621f8?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx6aW1iYWJ3ZSUyMGxhbmRzY2FwZSUyMG1vZGVybnxlbnwxfHx8fDE3NzU1ODA3NjN8MA&ixlib=rb-4.1.0&q=80&w=1080"
                   alt="Zimbabwe landscape"
                   className="w-full h-[400px] object-cover"
                 />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="about" className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid lg:grid-cols-[1.2fr_0.8fr] gap-10 items-start">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-blue-700 mb-4">Why SABHUKU AI</p>
+              <h2 className="text-4xl font-extrabold text-slate-950 mb-5">A shared home for AI solutions, local data, and the people building them.</h2>
+              <p className="text-lg text-slate-600 max-w-3xl">
+                We want teams to do more than just consume AI. SABHUKU AI is designed to help researchers, founders, engineers, and curious learners contribute useful assets, collaborate around real-world needs, and grow a stronger AI ecosystem across Zimbabwe, the SADC region, and beyond.
+              </p>
+            </div>
+            <div className="grid gap-4">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <Users className="w-6 h-6 text-orange-600 mb-3" />
+                <h3 className="text-lg font-bold text-slate-900">Community-led by design</h3>
+                <p className="text-slate-600 mt-2">Contributors can publish datasets, share models, and help each other improve what gets built.</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <Database className="w-6 h-6 text-green-600 mb-3" />
+                <h3 className="text-lg font-bold text-slate-900">Grounded in useful data</h3>
+                <p className="text-slate-600 mt-2">Better local AI starts with accessible, well-described, reusable datasets.</p>
               </div>
             </div>
           </div>
@@ -139,7 +201,7 @@ export function LandingPage() {
                 </div>
                 
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-1" />
+                  <CheckCircle className="w-6 h-6 text-yellow-600 flex-shrink-0 mt-1" />
                   <div>
                     <h4 className="font-bold text-gray-900 mb-1">Curated Datasets</h4>
                     <p className="text-gray-600">Access cleaned, annotated datasets specific to Zimbabwe and SADC</p>
@@ -147,7 +209,7 @@ export function LandingPage() {
                 </div>
                 
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-1" />
+                  <CheckCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
                   <div>
                     <h4 className="font-bold text-gray-900 mb-1">Collaborative Workspace</h4>
                     <p className="text-gray-600">Share models, datasets, and collaborate with the community</p>
@@ -155,7 +217,7 @@ export function LandingPage() {
                 </div>
                 
                 <div className="flex items-start gap-3">
-                  <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0 mt-1" />
+                  <CheckCircle className="w-6 h-6 text-black-600 flex-shrink-0 mt-1" />
                   <div>
                     <h4 className="font-bold text-gray-900 mb-1">Training Resources</h4>
                     <p className="text-gray-600">Interactive tutorials and courses on AI and machine learning</p>
@@ -199,6 +261,36 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* Support Section */}
+      <section id="support" className="py-20 px-4 sm:px-6 lg:px-8 bg-slate-950 text-white">
+        <div className="max-w-6xl mx-auto">
+          <div className="grid lg:grid-cols-[1.1fr_0.9fr] gap-8 items-stretch">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-blue-300 mb-4">Support</p>
+              <h2 className="text-4xl font-extrabold mb-5">Need help getting started, contributing, or finding the right AI approach?</h2>
+              <p className="text-lg text-slate-300 max-w-2xl">
+                Whether you're exploring your first dataset upload, building a local-language model, or looking for collaboration, we want support to feel human and accessible.
+              </p>
+            </div>
+            <div className="grid gap-4">
+              <div className="rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+                <MessageSquareHeart className="w-6 h-6 text-blue-300 mb-3" />
+                <h3 className="text-xl font-bold">Ask the community</h3>
+                <p className="text-slate-300 mt-2 mb-4">Join the Discord and get help from builders, contributors, and early users.</p>
+                <a href="https://discord.gg/EytdFfRC" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-white text-slate-950 px-5 py-3 font-semibold hover:bg-slate-100">
+                  Join Discord
+                  <ArrowRight className="w-4 h-4" />
+                </a>
+              </div>
+              <div className="rounded-3xl border border-blue-400/20 bg-blue-500/10 p-6">
+                <h3 className="text-xl font-bold">Need direct support?</h3>
+                <p className="text-slate-300 mt-2">We can add a proper support form or contact workflow next if you want this section to route enquiries somewhere specific.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
@@ -228,15 +320,6 @@ export function LandingPage() {
             </div>
             
             <div>
-              <h4 className="font-bold text-white mb-4">Platform</h4>
-              <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white">Models</a></li>
-                <li><a href="#" className="hover:text-white">Datasets</a></li>
-                <li><a href="#" className="hover:text-white">Learning</a></li>
-              </ul>
-            </div>
-            
-            <div>
               <h4 className="font-bold text-white mb-4">Company</h4>
               <ul className="space-y-2 text-sm">
                 <li><a href="#" className="hover:text-white">About</a></li>
@@ -251,6 +334,15 @@ export function LandingPage() {
                 <li><a href="#" className="hover:text-white">Privacy</a></li>
                 <li><a href="#" className="hover:text-white">Terms</a></li>
                 <li><a href="#" className="hover:text-white">License</a></li>
+              </ul>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-white mb-4">Socials</h4>
+              <ul className="space-y-2 text-sm">
+                <li><a href="https://discord.gg/EytdFfRC" target="_blank" rel="noreferrer" className="hover:text-white">Discord</a></li>
+                {/* <li><a href="#" className="hover:text-white">X</a></li> */}
+                {/* <li><a href="#" className="hover:text-white">Instagram</a></li> */}
               </ul>
             </div>
           </div>

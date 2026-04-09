@@ -1,26 +1,57 @@
 services:
+  db:
+    image: postgres:16
+    restart: always
+    env_file:
+      - ./.env
+    environment:
+      POSTGRES_DB: ${DB_NAME:-sabhuku}
+      POSTGRES_USER: ${DB_USER:-sabhukuUser}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ok12is17massG}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   backend:
     build: ./backend
+    env_file:
+      - ./.env
     environment:
-      - SECRET_KEY=your-secret-key
-      - DEBUG=False
-      - ALLOWED_HOSTS=*
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key}
+      DEBUG: ${DEBUG:-True}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
+      DB_NAME: ${DB_NAME:-sabhuku}
+      DB_USER: ${DB_USER:-sabhukuUser}
+      DB_PASSWORD: ${DB_PASSWORD:-ok12is17massG}
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-5432}
+      GS_BUCKET_NAME: ${GS_BUCKET_NAME}
+      GS_UPLOAD_URL_EXPIRATION_MINUTES: ${GS_UPLOAD_URL_EXPIRATION_MINUTES:-15}
+      GS_DOWNLOAD_URL_EXPIRATION_HOURS: ${GS_DOWNLOAD_URL_EXPIRATION_HOURS:-1}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS}
     volumes:
-      - ./backend:/app       # sqlite db persists
+      - ${GOOGLE_APPLICATION_CREDENTIALS_HOST}:/app/credentials/gcs-key.json:ro
+    depends_on:
+       - db
     restart: always
 
   frontend:
     build: ./frontend
     volumes:
-      - frontend_build:/dist
+      - frontend_build:/dist  # writes build here
 
   nginx:
-    build: ./nginx
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-    restart: always
+      build: ./nginx
+      ports:
+        - "80:80"
+      volumes:
+        - frontend_build:/usr/share/nginx/html
+      depends_on:
+        frontend:
+          condition: service_completed_successfully  # waits for frontend to finish
+        backend:
+          condition: service_started
+      restart: always
 
 volumes:
-  frontend_build:
+  postgres_data:
+  frontend_build:  # shared between frontend and nginx

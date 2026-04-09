@@ -1,9 +1,7 @@
-<<<<<<< HEAD
 __pycache__/
 *.pyc
 staticfiles/
 db.sqlite3
-=======
 # Python
 __pycache__/
 *.py[cod]
@@ -71,4 +69,7 @@ node_modules/
 # OS files
 .DS_Store
 Thumbs.db
->>>>>>> api-ready
+
+# Keys 
+.keys/
+.env

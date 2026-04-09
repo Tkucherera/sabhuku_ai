@@ -1,10 +1,8 @@
 export async function registerUser({
-  name,
   email,
   password1,
   password2,
 }: {
-  name: string;
   email: string;
   password1: string;
   password2: string;
@@ -12,7 +10,7 @@ export async function registerUser({
   const res = await fetch("/api/auth/registration/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: name, email, password1, password2 }),
+    body: JSON.stringify({ username: email, email, password1, password2 }),
   });
 
   if (!res.ok) throw await res.json();
@@ -21,16 +19,16 @@ export async function registerUser({
 }
 
 export async function loginUser({
-  username,
+  email,
   password,
 }: {
-  username: string;
+  email: string;
   password: string;
 }) {
   const res = await fetch("/api/auth/login/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username: email, password }),
   });
 
   if (!res.ok) throw await res.json();
