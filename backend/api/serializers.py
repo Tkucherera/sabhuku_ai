@@ -93,8 +93,40 @@ class UserProfileSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source="user.username", read_only=True)
     email = serializers.CharField(source="user.email", read_only=True)
     date_joined = serializers.DateTimeField(source="user.date_joined", read_only=True)
- 
+    first_name = serializers.CharField(source="user.first_name", required=False, allow_blank=True)
+    last_name = serializers.CharField(source="user.last_name", required=False, allow_blank=True)
+
     class Meta:
         model = UserProfile
-        fields = ["username", "email", "date_joined", "bio", "location", "title", "twitter", "linkedin", "github"]
- 
+        fields = [
+            "username",
+            "email",
+            "date_joined",
+            "first_name",
+            "last_name",
+            "bio",
+            "location",
+            "title",
+            "avatar_url",
+            "cover_image_url",
+            "twitter",
+            "linkedin",
+            "github",
+        ]
+
+    def update(self, instance, validated_data):
+        user_data = validated_data.pop("user", {})
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        user = instance.user
+        user_changed = False
+        for attr, value in user_data.items():
+            if getattr(user, attr) != value:
+                setattr(user, attr, value)
+                user_changed = True
+        if user_changed:
+            user.save(update_fields=list(user_data.keys()))
+
+        return instance

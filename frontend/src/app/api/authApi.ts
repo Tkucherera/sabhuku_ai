@@ -1,8 +1,12 @@
 export async function registerUser({
+  firstName,
+  lastName,
   email,
   password1,
   password2,
 }: {
+  firstName: string;
+  lastName: string;
   email: string;
   password1: string;
   password2: string;
@@ -10,7 +14,14 @@ export async function registerUser({
   const res = await fetch("/api/auth/registration/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: email, email, password1, password2 }),
+    body: JSON.stringify({
+      username: email,
+      email,
+      first_name: firstName,
+      last_name: lastName,
+      password1,
+      password2,
+    }),
   });
 
   if (!res.ok) throw await res.json();
@@ -37,9 +48,13 @@ export async function loginUser({
 }
 
 export interface ProfileData {
+  first_name: string;
+  last_name: string;
   bio: string;
   location: string;
   title: string;
+  avatar_url: string;
+  cover_image_url: string;
   twitter: string;
   linkedin: string;
   github: string;

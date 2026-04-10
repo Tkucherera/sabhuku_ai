@@ -7,7 +7,7 @@ services:
     environment:
       POSTGRES_DB: ${DB_NAME:-sabhuku}
       POSTGRES_USER: ${DB_USER:-sabhukuUser}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-ok12is17massG}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -19,9 +19,9 @@ services:
       SECRET_KEY: ${SECRET_KEY:-your-secret-key}
       DEBUG: ${DEBUG:-True}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
-      DB_NAME: ${DB_NAME:-sabhuku}
-      DB_USER: ${DB_USER:-sabhukuUser}
-      DB_PASSWORD: ${DB_PASSWORD:-ok12is17massG}
+      DB_NAME: ${DB_NAME:-sa}
+      DB_USER: ${DB_USER:-sabhuku}
+      DB_PASSWORD: ${DB_PASSWORD}
       DB_HOST: ${DB_HOST:-db}
       DB_PORT: ${DB_PORT:-5432}
       GS_BUCKET_NAME: ${GS_BUCKET_NAME}

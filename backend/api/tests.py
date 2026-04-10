@@ -161,3 +161,50 @@ class DatasetUploadFlowTests(APITestCase):
         self.assertEqual(response.data["url"], "https://signed-dataset-download.example")
         dataset.refresh_from_db()
         self.assertEqual(dataset.downloads, 1)
+
+
+class ProfileTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="person@example.com",
+            email="person@example.com",
+            password="secret123",
+            first_name="Tinaye",
+            last_name="Kucherera",
+        )
+        self.client.force_authenticate(user=self.user)
+
+    def test_profile_retrieval_includes_name_and_image_fields(self):
+        profile = self.user.profile
+        profile.avatar_url = "https://example.com/avatar.png"
+        profile.cover_image_url = "https://example.com/cover.png"
+        profile.save(update_fields=["avatar_url", "cover_image_url"])
+
+        response = self.client.get("/api/profile/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["first_name"], "Tinaye")
+        self.assertEqual(response.data["last_name"], "Kucherera")
+        self.assertEqual(response.data["avatar_url"], "https://example.com/avatar.png")
+        self.assertEqual(response.data["cover_image_url"], "https://example.com/cover.png")
+
+    def test_profile_update_updates_user_and_profile_fields(self):
+        response = self.client.patch(
+            "/api/profile/",
+            {
+                "first_name": "Tinashe",
+                "last_name": "Kucherera",
+                "title": "ML Engineer",
+                "avatar_url": "https://example.com/new-avatar.png",
+                "cover_image_url": "https://example.com/new-cover.png",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.user.refresh_from_db()
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.first_name, "Tinashe")
+        self.assertEqual(self.user.last_name, "Kucherera")
+        self.assertEqual(self.user.profile.avatar_url, "https://example.com/new-avatar.png")
+        self.assertEqual(self.user.profile.cover_image_url, "https://example.com/new-cover.png")

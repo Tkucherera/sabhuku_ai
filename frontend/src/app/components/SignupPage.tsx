@@ -7,6 +7,8 @@ import { registerUser } from "../api/authApi";
 import { useAuth } from "./AuthContext";
 
 export function SignupPage() {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [password1, setPassword1] = useState("");
   const [password2, setPassword2] = useState("");
@@ -32,7 +34,7 @@ export function SignupPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await registerUser({ email, password1, password2 });
+      const data = await registerUser({ firstName, lastName, email, password1, password2 });
       login(data.access);
       navigate("/profile");
     } catch (e: unknown) {
@@ -65,6 +67,36 @@ export function SignupPage() {
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && <p className="text-red-500">{error}</p>}
+
+            <div>
+              <label htmlFor="first-name" className="block text-sm font-medium text-gray-700 mb-2">
+                First name
+              </label>
+              <input
+                id="first-name"
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Tinashe"
+                required
+              />
+            </div>
+
+            <div>
+              <label htmlFor="last-name" className="block text-sm font-medium text-gray-700 mb-2">
+                Last name
+              </label>
+              <input
+                id="last-name"
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Kucherera"
+                required
+              />
+            </div>
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">

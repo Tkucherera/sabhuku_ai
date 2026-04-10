@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { PlatformLayout } from "./PlatformLayout";
-import { Mail, MapPin, Calendar, Settings, LogOut, Save, X, Upload, Plus, Trash2, ExternalLink, Box, Database, TrendingUp } from "lucide-react";
+import { Mail, MapPin, Calendar, Settings, LogOut, Save, X, Upload, Plus, Trash2, ExternalLink, Box, Database, TrendingUp, Image as ImageIcon } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { useAuth } from "./AuthContext";
 import { getProfile, updateProfile, ProfileData } from "../api/authApi";
@@ -47,6 +47,13 @@ const mapDatasetToUploadCard = (dataset: BackendDataset): UploadedDataset => ({
   uploadedAt: formatTimestamp(dataset.updated),
 });
 
+const buildInitials = (profile: FullProfile | null) => {
+  const first = profile?.first_name?.trim()?.[0] ?? "";
+  const last = profile?.last_name?.trim()?.[0] ?? "";
+  const fallback = profile?.username?.trim()?.slice(0, 2) ?? "??";
+  return `${first}${last}`.trim().toUpperCase() || fallback.toUpperCase();
+};
+
 export function ProfilePage() {
   const { token, logout } = useAuth();
   const navigate = useNavigate();
@@ -54,7 +61,18 @@ export function ProfilePage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [editing, setEditing] = useState(false);
   const [profile, setProfile] = useState<FullProfile | null>(null);
-  const [form, setForm] = useState<ProfileData>({ bio: "", location: "", title: "", twitter: "", linkedin: "", github: "" });
+  const [form, setForm] = useState<ProfileData>({
+    first_name: "",
+    last_name: "",
+    bio: "",
+    location: "",
+    title: "",
+    avatar_url: "",
+    cover_image_url: "",
+    twitter: "",
+    linkedin: "",
+    github: "",
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,9 +96,13 @@ export function ProfilePage() {
 
         setProfile(profileData);
         setForm({
+          first_name: profileData.first_name,
+          last_name: profileData.last_name,
           bio: profileData.bio,
           location: profileData.location,
           title: profileData.title,
+          avatar_url: profileData.avatar_url,
+          cover_image_url: profileData.cover_image_url,
           twitter: profileData.twitter,
           linkedin: profileData.linkedin,
           github: profileData.github,
@@ -148,12 +170,26 @@ export function ProfilePage() {
   };
 
   const handleCancel = () => {
-    if (profile) setForm({ bio: profile.bio, location: profile.location, title: profile.title, twitter: profile.twitter, linkedin: profile.linkedin, github: profile.github });
+    if (profile) {
+      setForm({
+        first_name: profile.first_name,
+        last_name: profile.last_name,
+        bio: profile.bio,
+        location: profile.location,
+        title: profile.title,
+        avatar_url: profile.avatar_url,
+        cover_image_url: profile.cover_image_url,
+        twitter: profile.twitter,
+        linkedin: profile.linkedin,
+        github: profile.github,
+      });
+    }
     setEditing(false);
     setError(null);
   };
 
-  const initials = profile?.username?.slice(0, 2).toUpperCase() ?? "??";
+  const initials = buildInitials(profile);
+  const displayName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim() || profile?.username || "—";
   const joinedDate = profile?.date_joined
     ? new Date(profile.date_joined).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "";
 
@@ -188,20 +224,58 @@ export function ProfilePage() {
 
         {/* Profile Header */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6 shadow-sm">
-          <div className="h-36 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700 relative">
-            <div className="absolute inset-0 opacity-20"
-              style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+          <div className="relative h-44 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700">
+            {profile?.cover_image_url ? (
+              <img
+                src={profile.cover_image_url}
+                alt={`${displayName} cover`}
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : null}
+            <div
+              className="absolute inset-0 opacity-20"
+              style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)", backgroundSize: "40px 40px" }}
+            />
+            <div className="absolute inset-0 bg-slate-950/15" />
           </div>
-          <div className="px-8 pb-8">
-            <div className="flex flex-col md:flex-row md:items-end md:justify-between -mt-14 mb-6">
+          <div className="relative px-8 pb-8">
+            <div className="relative z-20 flex flex-col md:flex-row md:items-end md:justify-between -mt-16 mb-6">
               <div className="flex items-end gap-5">
-                <div className="w-28 h-28 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center text-white text-3xl font-bold border-4 border-white shadow-lg shrink-0">
-                  {initials}
+                <div className="relative z-20 w-28 h-28 rounded-2xl border-4 border-white shadow-lg shrink-0 overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600">
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt={displayName}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center text-white text-3xl font-bold">
+                      {initials}
+                    </div>
+                  )}
                 </div>
                 <div className="pb-1">
-                  <h1 className="text-2xl font-bold text-gray-900">{profile?.username ?? "—"}</h1>
+                  {editing ? (
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <input
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="First name"
+                        value={form.first_name}
+                        onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                      />
+                      <input
+                        className="border border-gray-300 rounded-lg px-3 py-2 text-sm w-full focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Last name"
+                        value={form.last_name}
+                        onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+                      />
+                    </div>
+                  ) : (
+                    <h1 className="text-2xl font-bold text-gray-900">{displayName}</h1>
+                  )}
+              
                   {editing
-                    ? <input className="mt-1 border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-72 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    ? <input className="mt-3 border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-full md:w-72 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="Your title e.g. AI Researcher" value={form.title}
                         onChange={(e) => setForm({ ...form, title: e.target.value })} />
                     : <p className="text-gray-500 mt-0.5">{profile?.title || "No title set"}</p>
@@ -255,11 +329,40 @@ export function ProfilePage() {
               <div className="flex items-center gap-2"><Calendar className="w-4 h-4 text-gray-400" /><span>Joined {joinedDate}</span></div>
             </div>
 
-            {editing
-              ? <textarea className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm max-w-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            {editing ? (
+              <div className="space-y-4 max-w-3xl">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <ImageIcon className="w-4 h-4" />
+                      Profile image URL
+                    </label>
+                    <input
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="https://example.com/avatar.jpg"
+                      value={form.avatar_url}
+                      onChange={(e) => setForm({ ...form, avatar_url: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <ImageIcon className="w-4 h-4" />
+                      Cover image URL
+                    </label>
+                    <input
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="https://example.com/cover.jpg"
+                      value={form.cover_image_url}
+                      onChange={(e) => setForm({ ...form, cover_image_url: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <textarea className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm max-w-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   rows={3} placeholder="Write a short bio..." value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
-              : <p className="text-gray-600 max-w-2xl text-sm leading-relaxed">{profile?.bio || "No bio yet — click Edit to add one."}</p>
-            }
+              </div>
+            ) : (
+              <p className="text-gray-600 max-w-2xl text-sm leading-relaxed">{profile?.bio || "No bio yet — click Edit to add one."}</p>
+            )}
           </div>
         </div>
 

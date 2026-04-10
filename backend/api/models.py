@@ -9,6 +9,8 @@ class UserProfile(models.Model):
     bio = models.TextField(blank=True, default="")
     location = models.CharField(max_length=255, blank=True, default="")
     title = models.CharField(max_length=255, blank=True, default="")
+    avatar_url = models.URLField(blank=True, default="")
+    cover_image_url = models.URLField(blank=True, default="")
     twitter = models.CharField(max_length=255, blank=True, default="")
     linkedin = models.CharField(max_length=255, blank=True, default="")
     github = models.CharField(max_length=255, blank=True, default="")
