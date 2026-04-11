@@ -1,5 +1,6 @@
 # TODO
 
+0. Team Page: 
 1. *Bug: The upload of avater to profile doesnt work 
 2. *Bug: when users signs up they input first name and last but those arent being returned in the back look wassup
 3. RBAC (Role Based Authentication Access) (SuperUser, Auditors)
@@ -13,8 +14,11 @@
 ## Big Lifts
 - Dev Ops and QA
     - Staged Local, Staging and Production environment 
-    - Developing Deployment scopes, release schedules, testing 
+    - Developing Deployment scopes, release schedules, testing, change logs
     - Perfomance, Logging, Scaling
+    - github actions
+    - contribution policies
+
 
 - Security
     - Email Verification on signup (allauth)
@@ -27,6 +31,17 @@
     - How do we actually check and make sure the data on the site isn't fake, slop, 
     or just nonsensical 
     - Maybe just live the community to figure this out through discussion boards. 
+
+- Legal 
+    - Terms of Use and Cookie Polies
+    - user privacy 
+    - data privacy 
+    - Contact 
+
+- Employee Dashboard
+    - For moderation 
+    - Uploading Company/Site Curated Data. 
+    
 
 
 

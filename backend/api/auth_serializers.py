@@ -1,11 +1,13 @@
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import OperationalError, ProgrammingError
 from dj_rest_auth.registration.serializers import RegisterSerializer
-from dj_rest_auth.serializers import LoginSerializer
+from dj_rest_auth.serializers import LoginSerializer, PasswordResetSerializer
 from rest_framework import serializers
 from django.utils.text import slugify
 
 from .models import UserProfile
+from .utils import custom_password_reset_url_generator
 
 User = get_user_model()
 
@@ -74,3 +76,11 @@ class CustomRegisterSerializer(RegisterSerializer):
         if requested_public_username:
             profile.public_username = requested_public_username
             profile.save(update_fields=["public_username"])
+
+
+class CustomPasswordResetSerializer(PasswordResetSerializer):
+    def get_email_options(self):
+        return {
+            'url_generator': custom_password_reset_url_generator,
+            'from_email': getattr(settings, 'DEFAULT_FROM_EMAIL'),
+        }
