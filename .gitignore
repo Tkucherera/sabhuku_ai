@@ -73,3 +73,6 @@ Thumbs.db
 # Keys 
 .keys/
 .env
+
+# docker compose will
+docker-compose-yml
