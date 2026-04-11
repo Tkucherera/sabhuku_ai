@@ -119,10 +119,12 @@ class DatasetUploadFlowTests(APITestCase):
             "/api/datasets/",
             {
                 "name": "Zimbabwe Census 2022",
+                "subtitle": "Official census release",
                 "description": "National census dataset",
                 "category": "Tabular",
                 "size": "1.2 MB",
                 "format": ["csv"],
+                "tags": ["zimbabwe", "demographics"],
                 "file_path": "datasets/1/zimbabwe-census.csv",
                 "license": "CC BY 4.0",
             },
@@ -133,6 +135,8 @@ class DatasetUploadFlowTests(APITestCase):
         dataset = Dataset.objects.get(pk=response.data["id"])
         self.assertEqual(dataset.author, self.user)
         self.assertEqual(dataset.format, ["csv"])
+        self.assertEqual(dataset.tags, ["zimbabwe", "demographics"])
+        self.assertEqual(dataset.slug, "zimbabwe-census-2022")
         self.assertTrue(dataset.updated)
 
     @patch("api.views.storage.Client")
@@ -145,6 +149,7 @@ class DatasetUploadFlowTests(APITestCase):
             size="1.2 MB",
             downloads=0,
             format=["csv"],
+            tags=["zimbabwe", "demographics"],
             updated="2026-04-08T00:00:00Z",
             file_path="datasets/1/zimbabwe-census.csv",
             license="CC BY 4.0",
@@ -162,6 +167,28 @@ class DatasetUploadFlowTests(APITestCase):
         dataset.refresh_from_db()
         self.assertEqual(dataset.downloads, 1)
 
+    def test_dataset_can_be_fetched_by_public_owner_and_slug(self):
+        self.user.profile.public_username = "dataset-owner"
+        self.user.profile.save(update_fields=["public_username"])
+        dataset = Dataset.objects.create(
+            name="Zimbabwe Census 2022",
+            author=self.user,
+            description="National census dataset",
+            category="Tabular",
+            size="1.2 MB",
+            format=["csv"],
+            tags=["zimbabwe"],
+            updated="2026-04-08T00:00:00Z",
+            file_path="datasets/1/zimbabwe-census.csv",
+            license="CC BY 4.0",
+        )
+
+        response = self.client.get("/api/datasets/by-owner/dataset-owner/zimbabwe-census-2022/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], dataset.id)
+        self.assertEqual(response.data["author_public_username"], "dataset-owner")
+
 
 class ProfileTests(APITestCase):
     def setUp(self):
@@ -176,27 +203,63 @@ class ProfileTests(APITestCase):
 
     def test_profile_retrieval_includes_name_and_image_fields(self):
         profile = self.user.profile
+        profile.public_username = "tinaye"
         profile.avatar_url = "https://example.com/avatar.png"
         profile.cover_image_url = "https://example.com/cover.png"
-        profile.save(update_fields=["avatar_url", "cover_image_url"])
+        profile.save(update_fields=["public_username", "avatar_url", "cover_image_url"])
 
         response = self.client.get("/api/profile/")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["public_username"], "tinaye")
         self.assertEqual(response.data["first_name"], "Tinaye")
         self.assertEqual(response.data["last_name"], "Kucherera")
         self.assertEqual(response.data["avatar_url"], "https://example.com/avatar.png")
         self.assertEqual(response.data["cover_image_url"], "https://example.com/cover.png")
 
-    def test_profile_update_updates_user_and_profile_fields(self):
+    @patch("api.serializers.storage.Client")
+    def test_profile_retrieval_signs_private_image_paths(self, mock_storage_client):
+        mock_blob = MagicMock()
+        mock_blob.generate_signed_url.side_effect = [
+            "https://signed-avatar.example",
+            "https://signed-cover.example",
+        ]
+        mock_bucket = MagicMock()
+        mock_bucket.blob.return_value = mock_blob
+        mock_storage_client.return_value.bucket.return_value = mock_bucket
+
+        profile = self.user.profile
+        profile.public_username = "tinaye"
+        profile.avatar_path = "profiles/1/avatar image.png"
+        profile.cover_image_path = "profiles/1/cover image.png"
+        profile.save(update_fields=["public_username", "avatar_path", "cover_image_path"])
+
+        response = self.client.get("/api/profile/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["avatar_url"], "https://signed-avatar.example")
+        self.assertEqual(response.data["cover_image_url"], "https://signed-cover.example")
+
+    @patch("api.serializers.storage.Client")
+    def test_profile_update_updates_user_and_profile_fields(self, mock_storage_client):
+        mock_blob = MagicMock()
+        mock_blob.generate_signed_url.side_effect = [
+            "https://signed-avatar.example",
+            "https://signed-cover.example",
+        ]
+        mock_bucket = MagicMock()
+        mock_bucket.blob.return_value = mock_blob
+        mock_storage_client.return_value.bucket.return_value = mock_bucket
+
         response = self.client.patch(
             "/api/profile/",
             {
+                "public_username": "tinashe-k",
                 "first_name": "Tinashe",
                 "last_name": "Kucherera",
                 "title": "ML Engineer",
-                "avatar_url": "https://example.com/new-avatar.png",
-                "cover_image_url": "https://example.com/new-cover.png",
+                "avatar_path": "profiles/1/new-avatar.png",
+                "cover_image_path": "profiles/1/new-cover.png",
             },
             format="json",
         )
@@ -204,7 +267,124 @@ class ProfileTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.user.refresh_from_db()
         self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.public_username, "tinashe-k")
         self.assertEqual(self.user.first_name, "Tinashe")
         self.assertEqual(self.user.last_name, "Kucherera")
-        self.assertEqual(self.user.profile.avatar_url, "https://example.com/new-avatar.png")
-        self.assertEqual(self.user.profile.cover_image_url, "https://example.com/new-cover.png")
+        self.assertEqual(self.user.profile.avatar_path, "profiles/1/new-avatar.png")
+        self.assertEqual(self.user.profile.cover_image_path, "profiles/1/new-cover.png")
+
+    @patch("api.views.storage.Client")
+    def test_profile_upload_url_returns_signed_upload_data(self, mock_storage_client):
+        mock_blob = MagicMock()
+        mock_blob.generate_signed_url.return_value = "https://signed-profile-upload.example"
+        mock_bucket = MagicMock()
+        mock_bucket.blob.return_value = mock_blob
+        mock_storage_client.return_value.bucket.return_value = mock_bucket
+
+        response = self.client.post(
+            "/api/profile/upload-url/",
+            {"filename": "avatar image.png", "content_type": "image/png"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["upload_url"], "https://signed-profile-upload.example")
+        self.assertTrue(response.data["file_path"].startswith(f"profiles/{self.user.id}/"))
+        self.assertTrue(response.data["file_url"].endswith(".png"))
+        self.assertIn("avatar%20image.png", response.data["file_url"])
+        self.assertIn("%20", response.data["file_url"])
+
+
+class LoginTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="legacy@example.com",
+            email="legacy@example.com",
+            password="secret123",
+        )
+        self.user.profile.public_username = "legacy-user"
+        self.user.profile.save(update_fields=["public_username"])
+
+    def test_login_accepts_legacy_email_in_username_field(self):
+        response = self.client.post(
+            "/api/auth/login/",
+            {"username": "legacy@example.com", "password": "secret123"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("access", response.data)
+
+    def test_login_accepts_public_username(self):
+        response = self.client.post(
+            "/api/auth/login/",
+            {"username": "legacy-user", "password": "secret123"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("access", response.data)
+
+
+class DashboardTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="dashboard@example.com",
+            email="dashboard@example.com",
+            password="secret123",
+            first_name="Dash",
+            last_name="Board",
+        )
+        self.user.profile.public_username = "dash-board"
+        self.user.profile.save(update_fields=["public_username"])
+        self.client.force_authenticate(user=self.user)
+
+    @patch("api.serializers.storage.Client")
+    def test_dashboard_returns_live_summary_data(self, mock_storage_client):
+        mock_blob = MagicMock()
+        mock_blob.generate_signed_url.return_value = "https://signed-avatar.example"
+        mock_bucket = MagicMock()
+        mock_bucket.blob.return_value = mock_blob
+        mock_storage_client.return_value.bucket.return_value = mock_bucket
+
+        self.user.profile.avatar_path = "profiles/1/avatar.png"
+        self.user.profile.save(update_fields=["avatar_path"])
+
+        Model.objects.create(
+            name="User Model",
+            author=self.user,
+            description="Owned by current user",
+            category="NLP",
+            downloads=10,
+            likes=2,
+            trending=True,
+            tags=["nlp"],
+            updated="2026-04-10T00:00:00Z",
+            file_path="models/1/user-model.bin",
+            license="Custom",
+        )
+        other_user = User.objects.create_user(username="other@example.com", password="secret123")
+        Dataset.objects.create(
+            name="Public Dataset",
+            author=other_user,
+            description="Community dataset",
+            category="Tabular",
+            size="3 GB",
+            downloads=25,
+            format=["csv"],
+            tags=["public"],
+            updated="2026-04-10T00:00:00Z",
+            file_path="datasets/1/public.csv",
+            license="CC BY 4.0",
+            is_public=True,
+        )
+
+        response = self.client.get("/api/dashboard/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["user"]["public_username"], "dash-board")
+        self.assertEqual(response.data["user"]["avatar_url"], "https://signed-avatar.example")
+        self.assertEqual(response.data["stats"]["your_models"], 1)
+        self.assertEqual(response.data["stats"]["community_datasets"], 1)
+        self.assertEqual(len(response.data["trending_models"]), 1)
+        self.assertEqual(len(response.data["popular_datasets"]), 1)

@@ -3,16 +3,27 @@ import { apiClient } from "./client";
 export interface Dataset {
   id: number;
   name: string;
+  slug: string;
+  subtitle: string;
   description: string;
   category: string;
   size: string;
   downloads: number;
   format: string[];
+  tags: string[];
   updated: string;
   file_path: string;
   license: string;
   author: number;
   author_username?: string;
+  author_public_username?: string;
+  dataset_thumbnail: string;
+  is_public: boolean;
+  coverage_start_date: string | null;
+  coverage_end_date: string | null;
+  authors: string;
+  source: string;
+  usability_score: number;
 }
 
 export function fetchDatasets(): Promise<Dataset[]> {
@@ -22,16 +33,19 @@ export function fetchDatasets(): Promise<Dataset[]> {
 interface SignedUploadResponse {
   upload_url: string;
   file_path: string;
+  file_url?: string;
   content_type: string;
   expires_in_minutes: number;
 }
 
 interface CreateDatasetPayload {
   name: string;
+  subtitle?: string;
   description: string;
   category: string;
   size: string;
   format: string[];
+  tags?: string[];
   file_path: string;
   license?: string;
 }
@@ -66,6 +80,42 @@ export function createDataset(
     },
     token
   );
+}
+
+export function fetchDatasetByOwnerAndSlug(
+  publicUsername: string,
+  datasetSlug: string,
+  token?: string | null
+): Promise<Dataset> {
+  return apiClient(
+    `/api/datasets/by-owner/${encodeURIComponent(publicUsername)}/${encodeURIComponent(datasetSlug)}/`,
+    undefined,
+    token
+  );
+}
+
+export function updateDataset(
+  token: string,
+  datasetId: number,
+  payload: Partial<Dataset>
+): Promise<Dataset> {
+  return apiClient(
+    `/api/datasets/${datasetId}/`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    token
+  );
+}
+
+export async function requestDatasetDownloadUrl(datasetId: number): Promise<{ url: string }> {
+  return apiClient(`/api/datasets/${datasetId}/download-url/`);
+}
+
+export function buildDatasetPath(dataset: Pick<Dataset, "author_public_username" | "slug">) {
+  const owner = dataset.author_public_username || "user";
+  return `/datasets/${encodeURIComponent(owner)}/${encodeURIComponent(dataset.slug)}`;
 }
 
 export async function uploadDatasetFileToStorage(

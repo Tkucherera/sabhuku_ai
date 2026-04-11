@@ -78,10 +78,12 @@ export function UploadDatasetModal({ onClose, onUploaded }: Props) {
       setProgress(80);
       const createdDataset = await createDataset(token, {
         name: form.name.trim(),
+        subtitle: "",
         description: form.description.trim(),
         category: form.category,
         size: formatFileSize(selectedFile.size),
         format: inferDatasetFormats(selectedFile),
+        tags: form.tags.split(",").map((tag) => tag.trim()).filter(Boolean),
         file_path,
         license: form.license,
       });
@@ -113,6 +115,10 @@ export function UploadDatasetModal({ onClose, onUploaded }: Props) {
       setUploading(false);
     }
   };
+
+  // Todo add ability to set dataset to private or public on upload 
+
+  // Todo the decription section can be in the form of a formatable section. How this is saved in the backend to preserve formating of urls, bolds, bulleting in question 
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

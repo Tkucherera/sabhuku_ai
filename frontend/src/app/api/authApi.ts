@@ -1,12 +1,14 @@
 export async function registerUser({
   firstName,
   lastName,
+  publicUsername,
   email,
   password1,
   password2,
 }: {
   firstName: string;
   lastName: string;
+  publicUsername: string;
   email: string;
   password1: string;
   password2: string;
@@ -19,6 +21,7 @@ export async function registerUser({
       email,
       first_name: firstName,
       last_name: lastName,
+      public_username: publicUsername,
       password1,
       password2,
     }),
@@ -30,16 +33,16 @@ export async function registerUser({
 }
 
 export async function loginUser({
-  email,
+  identifier,
   password,
 }: {
-  email: string;
+  identifier: string;
   password: string;
 }) {
   const res = await fetch("/api/auth/login/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: email, password }),
+    body: JSON.stringify({ username: identifier, password }),
   });
 
   if (!res.ok) throw await res.json();
@@ -48,16 +51,27 @@ export async function loginUser({
 }
 
 export interface ProfileData {
+  public_username: string;
   first_name: string;
   last_name: string;
   bio: string;
   location: string;
   title: string;
+  avatar_path?: string;
   avatar_url: string;
+  cover_image_path?: string;
   cover_image_url: string;
   twitter: string;
   linkedin: string;
   github: string;
+}
+
+interface SignedUploadResponse {
+  upload_url: string;
+  file_path: string;
+  file_url: string;
+  content_type: string;
+  expires_in_minutes: number;
 }
 
 export async function getProfile(token: string) {
@@ -82,4 +96,43 @@ export async function updateProfile(token: string, data: Partial<ProfileData>) {
   });
   if (!res.ok) throw await res.json();
   return res.json();
+}
+
+export async function requestProfileImageUploadUrl(
+  token: string,
+  filename: string,
+  contentType: string
+) {
+  const res = await fetch("/api/profile/upload-url/", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      filename,
+      content_type: contentType || "application/octet-stream",
+    }),
+  });
+
+  if (!res.ok) throw await res.json();
+  return res.json() as Promise<SignedUploadResponse>;
+}
+
+export async function uploadProfileImageToStorage(
+  uploadUrl: string,
+  file: File,
+  contentType: string
+) {
+  const response = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": contentType || "application/octet-stream",
+    },
+    body: file,
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to upload image to storage");
+  }
 }

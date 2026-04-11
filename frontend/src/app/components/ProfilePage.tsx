@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PlatformLayout } from "./PlatformLayout";
-import { Mail, MapPin, Calendar, Settings, LogOut, Save, X, Upload, Plus, Trash2, ExternalLink, Box, Database, TrendingUp, Image as ImageIcon } from "lucide-react";
+import { Mail, MapPin, Calendar, Settings, LogOut, Save, X, Upload, Plus, Trash2, ExternalLink, Box, Database, TrendingUp, Image as ImageIcon, Loader2, AtSign } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { useAuth } from "./AuthContext";
-import { getProfile, updateProfile, ProfileData } from "../api/authApi";
+import { getProfile, requestProfileImageUploadUrl, updateProfile, uploadProfileImageToStorage, ProfileData } from "../api/authApi";
 import { UploadModelModal, UploadedModel } from "./UploadModelModal";
 import { UploadDatasetModal, UploadedDataset } from "./UploadDatasetModal";
 import { fetchModels } from "../api/modelApi";
@@ -41,7 +41,7 @@ const mapDatasetToUploadCard = (dataset: BackendDataset): UploadedDataset => ({
   description: dataset.description,
   category: dataset.category,
   license: dataset.license,
-  tags: dataset.format.join(", "),
+  tags: dataset.tags.join(", "),
   fileName: getFileNameFromPath(dataset.file_path),
   fileSize: dataset.size,
   uploadedAt: formatTimestamp(dataset.updated),
@@ -62,12 +62,15 @@ export function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [profile, setProfile] = useState<FullProfile | null>(null);
   const [form, setForm] = useState<ProfileData>({
+    public_username: "",
     first_name: "",
     last_name: "",
     bio: "",
     location: "",
     title: "",
+    avatar_path: "",
     avatar_url: "",
+    cover_image_path: "",
     cover_image_url: "",
     twitter: "",
     linkedin: "",
@@ -80,6 +83,16 @@ export function ProfilePage() {
   const [uploadTarget, setUploadTarget] = useState<UploadTarget>(null);
   const [models, setModels] = useState<UploadedModel[]>([]);
   const [datasets, setDatasets] = useState<UploadedDataset[]>([]);
+  const [imageUploadState, setImageUploadState] = useState<{ avatar: boolean; cover: boolean }>({
+    avatar: false,
+    cover: false,
+  });
+  const [imagePreviewUrls, setImagePreviewUrls] = useState<{ avatar: string; cover: string }>({
+    avatar: "",
+    cover: "",
+  });
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,17 +109,21 @@ export function ProfilePage() {
 
         setProfile(profileData);
         setForm({
+          public_username: profileData.public_username,
           first_name: profileData.first_name,
           last_name: profileData.last_name,
           bio: profileData.bio,
           location: profileData.location,
           title: profileData.title,
+          avatar_path: profileData.avatar_path || "",
           avatar_url: profileData.avatar_url,
+          cover_image_path: profileData.cover_image_path || "",
           cover_image_url: profileData.cover_image_url,
           twitter: profileData.twitter,
           linkedin: profileData.linkedin,
           github: profileData.github,
         });
+        setImagePreviewUrls({ avatar: "", cover: "" });
 
         const [allModels, allDatasets] = await Promise.all([fetchModels(), fetchDatasets()]);
         if (cancelled) return;
@@ -161,8 +178,18 @@ export function ProfilePage() {
     if (!token) return;
     setSaving(true);
     try {
-      const updated = await updateProfile(token, form);
-      setProfile((prev) => prev ? { ...prev, ...updated } : prev);
+      const payload: Partial<ProfileData> = {
+        ...form,
+        public_username: form.public_username.trim(),
+      };
+
+      if (!payload.public_username) {
+        delete payload.public_username;
+      }
+
+      const updated = await updateProfile(token, payload);
+      setProfile((prev) => prev ? { ...prev, ...payload, ...updated } : prev);
+      setImagePreviewUrls({ avatar: "", cover: "" });
       setEditing(false);
       setError(null);
     } catch { setError("Failed to save profile"); }
@@ -172,26 +199,64 @@ export function ProfilePage() {
   const handleCancel = () => {
     if (profile) {
       setForm({
+        public_username: profile.public_username,
         first_name: profile.first_name,
         last_name: profile.last_name,
         bio: profile.bio,
         location: profile.location,
         title: profile.title,
+        avatar_path: profile.avatar_path || "",
         avatar_url: profile.avatar_url,
+        cover_image_path: profile.cover_image_path || "",
         cover_image_url: profile.cover_image_url,
         twitter: profile.twitter,
         linkedin: profile.linkedin,
         github: profile.github,
       });
     }
+    setImagePreviewUrls({ avatar: "", cover: "" });
     setEditing(false);
     setError(null);
+  };
+
+  const handleProfileImageSelected = async (target: "avatar" | "cover", file: File | null) => {
+    if (!file || !token) return;
+
+    setImageUploadState((prev) => ({ ...prev, [target]: true }));
+    setError(null);
+
+    try {
+      const contentType = file.type || "application/octet-stream";
+      const previewUrl = URL.createObjectURL(file);
+      const { upload_url, file_path } = await requestProfileImageUploadUrl(token, file.name, contentType);
+      await uploadProfileImageToStorage(upload_url, file, contentType);
+
+      setImagePreviewUrls((prev) => ({
+        ...prev,
+        [target]: previewUrl,
+      }));
+      setForm((prev) => ({
+        ...prev,
+        [target === "avatar" ? "avatar_path" : "cover_image_path"]: file_path,
+        [target === "avatar" ? "avatar_url" : "cover_image_url"]: "",
+      }));
+    } catch (uploadError) {
+      if (uploadError instanceof Error) {
+        setError(uploadError.message);
+      } else {
+        setError(`Failed to upload ${target} image`);
+      }
+    } finally {
+      setImageUploadState((prev) => ({ ...prev, [target]: false }));
+    }
   };
 
   const initials = buildInitials(profile);
   const displayName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim() || profile?.username || "—";
   const joinedDate = profile?.date_joined
     ? new Date(profile.date_joined).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "";
+  const visibleAvatarUrl = editing ? imagePreviewUrls.avatar || form.avatar_url : profile?.avatar_url;
+  const visibleCoverImageUrl = editing ? imagePreviewUrls.cover || form.cover_image_url : profile?.cover_image_url;
 
   if (loading) return (
     <PlatformLayout>
@@ -225,9 +290,9 @@ export function ProfilePage() {
         {/* Profile Header */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-6 shadow-sm">
           <div className="relative h-44 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-700">
-            {profile?.cover_image_url ? (
+            {visibleCoverImageUrl ? (
               <img
-                src={profile.cover_image_url}
+                src={visibleCoverImageUrl}
                 alt={`${displayName} cover`}
                 className="absolute inset-0 h-full w-full object-cover"
               />
@@ -242,9 +307,9 @@ export function ProfilePage() {
             <div className="relative z-20 flex flex-col md:flex-row md:items-end md:justify-between -mt-16 mb-6">
               <div className="flex items-end gap-5">
                 <div className="relative z-20 w-28 h-28 rounded-2xl border-4 border-white shadow-lg shrink-0 overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600">
-                  {profile?.avatar_url ? (
+                  {visibleAvatarUrl ? (
                     <img
-                      src={profile.avatar_url}
+                      src={visibleAvatarUrl}
                       alt={displayName}
                       className="h-full w-full object-cover"
                     />
@@ -317,7 +382,8 @@ export function ProfilePage() {
               </div>
             </div>
 
-            <div className="flex flex-wrap gap-6 mb-5 text-sm text-gray-600">
+              <div className="flex flex-wrap gap-6 mb-5 text-sm text-gray-600">
+              <div className="flex items-center gap-2"><AtSign className="w-4 h-4 text-gray-400" /><span>{profile?.public_username ?? "—"}</span></div>
               <div className="flex items-center gap-2"><Mail className="w-4 h-4 text-gray-400" /><span>{profile?.email ?? "—"}</span></div>
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-gray-400" />
@@ -331,30 +397,74 @@ export function ProfilePage() {
 
             {editing ? (
               <div className="space-y-4 max-w-3xl">
+                <div>
+                  <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <AtSign className="w-4 h-4" />
+                    Public username
+                  </label>
+                  <input
+                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="your-public-handle"
+                    value={form.public_username}
+                    onChange={(e) => setForm({ ...form, public_username: e.target.value })}
+                  />
+                </div>
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700">
                       <ImageIcon className="w-4 h-4" />
-                      Profile image URL
+                      Avatar image
                     </label>
                     <input
-                      className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="https://example.com/avatar.jpg"
-                      value={form.avatar_url}
-                      onChange={(e) => setForm({ ...form, avatar_url: e.target.value })}
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        void handleProfileImageSelected("avatar", e.target.files?.[0] ?? null);
+                        e.target.value = "";
+                      }}
                     />
+                    <button
+                      type="button"
+                      onClick={() => avatarInputRef.current?.click()}
+                      disabled={imageUploadState.avatar}
+                      className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-xl px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {imageUploadState.avatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      {imageUploadState.avatar ? "Uploading avatar..." : "Choose avatar image"}
+                    </button>
+                    {form.avatar_url ? (
+                      <p className="mt-2 text-xs text-gray-500 truncate">{form.avatar_url}</p>
+                    ) : null}
                   </div>
                   <div>
                     <label className="mb-1.5 flex items-center gap-2 text-sm font-medium text-gray-700">
                       <ImageIcon className="w-4 h-4" />
-                      Cover image URL
+                      Cover image
                     </label>
                     <input
-                      className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="https://example.com/cover.jpg"
-                      value={form.cover_image_url}
-                      onChange={(e) => setForm({ ...form, cover_image_url: e.target.value })}
+                      ref={coverInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        void handleProfileImageSelected("cover", e.target.files?.[0] ?? null);
+                        e.target.value = "";
+                      }}
                     />
+                    <button
+                      type="button"
+                      onClick={() => coverInputRef.current?.click()}
+                      disabled={imageUploadState.cover}
+                      className="w-full flex items-center justify-center gap-2 border border-gray-300 rounded-xl px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {imageUploadState.cover ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                      {imageUploadState.cover ? "Uploading cover..." : "Choose cover image"}
+                    </button>
+                    {form.cover_image_url ? (
+                      <p className="mt-2 text-xs text-gray-500 truncate">{form.cover_image_url}</p>
+                    ) : null}
                   </div>
                 </div>
                 <textarea className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm max-w-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"

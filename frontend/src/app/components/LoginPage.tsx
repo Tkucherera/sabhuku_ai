@@ -6,7 +6,7 @@ import { loginUser } from "../api/authApi";
 import { useAuth } from "./AuthContext";
  
 export function LoginPage() {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +20,7 @@ export function LoginPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await loginUser({ email, password });
+      const data = await loginUser({ identifier, password });
       login(data.access);
       navigate("/dashboard");
     } catch (error: unknown) {
@@ -54,18 +54,18 @@ export function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {error && <p className="text-red-500">{error}</p>}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email address
+              <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-2">
+                Email or username
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="identifier"
+                  type="text"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="you@example.com"
+                  placeholder="you@example.com or your username"
                   required
                 />
               </div>

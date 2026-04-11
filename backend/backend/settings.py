@@ -77,6 +77,7 @@ MIDDLEWARE = [
 
 REST_AUTH = {
     'USE_JWT': True,
+    'LOGIN_SERIALIZER': 'api.auth_serializers.CustomLoginSerializer',
     'JWT_AUTH_COOKIE': 'access-token',
     'JWT_AUTH_REFRESH_COOKIE': 'refresh-token',
     'JWT_AUTH_HTTPONLY': True,

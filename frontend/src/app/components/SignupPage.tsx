@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { Brain, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Brain, Mail, Lock, Eye, EyeOff, AtSign } from "lucide-react";
 
 import { registerUser } from "../api/authApi";
 
@@ -9,6 +9,7 @@ import { useAuth } from "./AuthContext";
 export function SignupPage() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
+  const [publicUsername, setPublicUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password1, setPassword1] = useState("");
   const [password2, setPassword2] = useState("");
@@ -34,7 +35,7 @@ export function SignupPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await registerUser({ firstName, lastName, email, password1, password2 });
+      const data = await registerUser({ firstName, lastName, publicUsername, email, password1, password2 });
       login(data.access);
       navigate("/profile");
     } catch (e: unknown) {
@@ -93,9 +94,28 @@ export function SignupPage() {
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Kucherera"
+                placeholder="K"
                 required
               />
+            </div>
+
+            <div>
+              <label htmlFor="public-username" className="block text-sm font-medium text-gray-700 mb-2">
+                Public username
+              </label>
+              <div className="relative">
+                <AtSign className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  id="public-username"
+                  type="text"
+                  value={publicUsername}
+                  onChange={(e) => setPublicUsername(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="tinak"
+                  required
+                />
+              </div>
+              <p className="mt-1 text-xs text-gray-500">Used in public profile and dataset URLs</p>
             </div>
 
             <div>
