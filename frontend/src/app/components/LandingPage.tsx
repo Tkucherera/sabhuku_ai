@@ -237,7 +237,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Stats Section */}
+      {/* Stats Section Will show this wen the community grows
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-blue-600 text-white">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-4 gap-8 text-center">
@@ -260,7 +260,7 @@ export function LandingPage() {
           </div>
         </div>
       </section>
-
+      */}
       {/* Support Section */}
       <section id="support" className="py-20 px-4 sm:px-6 lg:px-8 bg-slate-950 text-white">
         <div className="max-w-6xl mx-auto">
