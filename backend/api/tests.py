@@ -3,11 +3,10 @@ from unittest.mock import MagicMock, patch
 from django.contrib.auth.models import User
 from django.core import mail
 from django.urls import reverse
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
 from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
+from allauth.account.utils import user_pk_to_url_str
 
 from .models import Dataset, Model
 from .utils import custom_password_reset_url_generator
@@ -315,7 +314,7 @@ class PasswordResetTests(APITestCase):
         with patch.dict("os.environ", {"FRONTEND_URL": "http://localhost:5173/"}):
             url = custom_password_reset_url_generator(None, user, "sample-token")
 
-        expected_uid = urlsafe_base64_encode(force_bytes(user.pk))
+        expected_uid = user_pk_to_url_str(user)
         self.assertEqual(
             url,
             f"http://localhost:5173/password-reset/confirm/{expected_uid}/sample-token",
