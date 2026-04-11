@@ -83,6 +83,9 @@ REST_AUTH = {
     'JWT_AUTH_HTTPONLY': True,
     'JWT_AUTH_SECURE': True,  # Set to True in production (HTTPS)
     'JWT_AUTH_SAMESITE': 'Lax',
+    'PASSWORD_RESET_USE_HTMLEMAIL': False,
+    'PASSWORD_RESET_SERIALIZER': 'api.auth_serializers.CustomPasswordResetSerializer',
+    'REGISTER_SERIALIZER': 'api.auth_serializers.CustomRegisterSerializer',
 }
 
 SIMPLE_JWT = {
@@ -115,15 +118,24 @@ REST_FRAMEWORK = {
 }
 
 # settings.py
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = os.getenv(
+    'EMAIL_BACKEND',
+    'django.core.mail.backends.console.EmailBackend'
+)
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', 1025))
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'False') == 'True'
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False') == 'True'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', 10))
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@sabhuku.local')
+SERVER_EMAIL = os.getenv('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
 
 ACCOUNT_EMAIL_VERIFICATION = 'none' # Options: 'mandatory', 'optional', 'none'
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
 ACCOUNT_USERNAME_REQUIRED = True
-REST_AUTH_REGISTER_SERIALIZERS = {
-    'REGISTER_SERIALIZER': 'api.auth_serializers.CustomRegisterSerializer',
-}
 
 TEMPLATES = [
     {

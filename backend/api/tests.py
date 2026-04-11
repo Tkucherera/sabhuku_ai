@@ -1,10 +1,16 @@
 from unittest.mock import MagicMock, patch
 
 from django.contrib.auth.models import User
+from django.core import mail
+from django.urls import reverse
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from .models import Dataset, Model
+from .utils import custom_password_reset_url_generator
 
 
 class ModelUploadFlowTests(APITestCase):
@@ -293,6 +299,50 @@ class ProfileTests(APITestCase):
         self.assertTrue(response.data["file_url"].endswith(".png"))
         self.assertIn("avatar%20image.png", response.data["file_url"])
         self.assertIn("%20", response.data["file_url"])
+
+
+class PasswordResetTests(APITestCase):
+    def test_password_reset_confirm_route_is_provided_by_dj_rest_auth(self):
+        self.assertEqual(reverse("rest_password_reset_confirm"), "/api/auth/password/reset/confirm")
+
+    def test_password_reset_url_generator_uses_frontend_route_and_encoded_uid(self):
+        user = User.objects.create_user(
+            username="reset-user",
+            email="reset@example.com",
+            password="secret123",
+        )
+
+        with patch.dict("os.environ", {"FRONTEND_URL": "http://localhost:5173/"}):
+            url = custom_password_reset_url_generator(None, user, "sample-token")
+
+        expected_uid = urlsafe_base64_encode(force_bytes(user.pk))
+        self.assertEqual(
+            url,
+            f"http://localhost:5173/password-reset/confirm/{expected_uid}/sample-token",
+        )
+
+    @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+    def test_password_reset_request_sends_html_email(self):
+        User.objects.create_user(
+            username="reset-html-user",
+            email="reset-html@example.com",
+            password="secret123",
+        )
+
+        with patch.dict("os.environ", {"FRONTEND_URL": "http://localhost:5173"}):
+            response = self.client.post(
+                "/api/auth/password/reset/",
+                {"email": "reset-html@example.com"},
+                format="json",
+            )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("Reset your SABHUKU AI password", mail.outbox[0].subject)
+        self.assertIn("http://localhost:5173/password-reset/confirm/", mail.outbox[0].body)
+        self.assertEqual(len(mail.outbox[0].alternatives), 1)
+        self.assertEqual(mail.outbox[0].alternatives[0].mimetype, "text/html")
+        self.assertIn("Reset password", mail.outbox[0].alternatives[0].content)
 
 
 class LoginTests(APITestCase):

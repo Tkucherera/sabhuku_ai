@@ -50,6 +50,42 @@ export async function loginUser({
   return data as { access: string; refresh?: string };
 }
 
+export async function requestPasswordReset({
+  email,
+}: {
+  email: string;
+}) {
+  const res = await fetch("/api/auth/password/reset/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email }),
+  });
+
+  if (!res.ok) throw await res.json();
+  return res.json();
+}
+
+export async function confirmPasswordReset({
+  uid,
+  token,
+  newPassword1,
+  newPassword2,
+}: {
+  uid: string;
+  token: string;
+  newPassword1: string;
+  newPassword2: string;
+}) {
+  const res = await fetch("/api/auth/password/reset/confirm/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ uid, token, new_password1: newPassword1, new_password2: newPassword2 }),
+  });
+
+  if (!res.ok) throw await res.json();
+  return res.json();
+}
+
 export interface ProfileData {
   public_username: string;
   first_name: string;
