@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { X, Upload, Database } from "lucide-react";
 import { useAuth } from "./AuthContext";
 import { createDataset, requestDatasetUploadUrl, uploadDatasetFileToStorage } from "../api/datasetApi";
+import { RichTextEditor } from "./ui/rich-text-editor";
 
 const DATASET_CATEGORIES = ["Tabular", "Text / NLP", "Images", "Audio", "Video", "Geospatial", "Time Series", "Other"];
 const LICENSES = ["CC0 (Public Domain)", "CC BY 4.0", "CC BY-SA 4.0", "CC BY-NC 4.0", "Apache 2.0", "MIT", "Custom"];
@@ -16,6 +17,7 @@ export interface UploadedDataset {
   fileName: string;
   fileSize: string;
   uploadedAt: string;
+  path?: string;
 }
 
 interface Props {
@@ -118,8 +120,6 @@ export function UploadDatasetModal({ onClose, onUploaded }: Props) {
 
   // Todo add ability to set dataset to private or public on upload 
 
-  // Todo the decription section can be in the form of a formatable section. How this is saved in the backend to preserve formating of urls, bolds, bulleting in question 
-
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
@@ -160,9 +160,12 @@ export function UploadDatasetModal({ onClose, onUploaded }: Props) {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
-                <textarea className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  rows={3} placeholder="What does this dataset contain? How was it collected?"
-                  value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                <RichTextEditor
+                  value={form.description}
+                  onChange={(description) => setForm({ ...form, description })}
+                  placeholder="What does this dataset contain? How was it collected?"
+                  minHeightClassName="min-h-32"
+                />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>

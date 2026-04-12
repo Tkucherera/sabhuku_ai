@@ -7,7 +7,7 @@ import { getProfile, requestProfileImageUploadUrl, updateProfile, uploadProfileI
 import { UploadModelModal, UploadedModel } from "./UploadModelModal";
 import { UploadDatasetModal, UploadedDataset } from "./UploadDatasetModal";
 import { fetchModels } from "../api/modelApi";
-import { fetchDatasets, Dataset as BackendDataset } from "../api/datasetApi";
+import { buildDatasetPath, fetchDatasets, Dataset as BackendDataset } from "../api/datasetApi";
 import { Model as BackendModel } from "../../types";
 
 
@@ -45,6 +45,7 @@ const mapDatasetToUploadCard = (dataset: BackendDataset): UploadedDataset => ({
   fileName: getFileNameFromPath(dataset.file_path),
   fileSize: dataset.size,
   uploadedAt: formatTimestamp(dataset.updated),
+  path: buildDatasetPath(dataset),
 });
 
 const buildInitials = (profile: FullProfile | null) => {
@@ -549,7 +550,15 @@ export function ProfilePage() {
                 : datasets.slice(0, 2).map((d) => (
                     <div key={d.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
                       <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center shrink-0"><Database className="w-4 h-4 text-green-600" /></div>
-                      <div className="min-w-0"><p className="font-medium text-sm text-gray-900 truncate">{d.name}</p><p className="text-xs text-gray-400">{d.category} · {d.fileSize}</p></div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm text-gray-900 truncate">{d.name}</p>
+                        <p className="text-xs text-gray-400">{d.category} · {d.fileSize}</p>
+                      </div>
+                      {d.path ? (
+                        <Link to={d.path} className="text-xs font-medium text-green-600 hover:text-green-700">
+                          View
+                        </Link>
+                      ) : null}
                     </div>
                   ))
               }
@@ -630,7 +639,6 @@ export function ProfilePage() {
                         </button>
                       </div>
                       <h3 className="font-bold text-gray-900 mb-1">{dataset.name}</h3>
-                      <p className="text-sm text-gray-500 mb-3 line-clamp-2">{dataset.description || "No description"}</p>
                       <div className="flex flex-wrap gap-2 mb-4">
                         <span className="bg-green-50 text-green-700 text-xs px-2.5 py-1 rounded-full">{dataset.category}</span>
                         <span className="bg-gray-100 text-gray-600 text-xs px-2.5 py-1 rounded-full">{dataset.license}</span>
@@ -641,6 +649,22 @@ export function ProfilePage() {
                       <div className="flex items-center justify-between pt-3 border-t border-gray-100 text-xs text-gray-400">
                         <span>{dataset.fileName} · {dataset.fileSize}</span><span>{dataset.uploadedAt}</span>
                       </div>
+                      {dataset.path ? (
+                        <div className="mt-4 flex items-center gap-3">
+                          <Link
+                            to={dataset.path}
+                            className="inline-flex items-center gap-1.5 text-sm font-medium text-green-600 hover:text-green-700"
+                          >
+                            View dataset
+                          </Link>
+                          <Link
+                            to={`${dataset.path}?tab=settings`}
+                            className="inline-flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-gray-900"
+                          >
+                            Edit dataset
+                          </Link>
+                        </div>
+                      ) : null}
                     </div>
                   ))}
                 </div>

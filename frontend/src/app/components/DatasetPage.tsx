@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useParams, useSearchParams } from "react-router";
 import { Calendar, Database, Download, EyeOff, Globe, Lock, Save, Tag, User2 } from "lucide-react";
 
 import { PlatformLayout } from "./PlatformLayout";
@@ -11,6 +11,7 @@ import {
   requestDatasetDownloadUrl,
   updateDataset,
 } from "../api/datasetApi";
+import { RichTextEditor } from "./ui/rich-text-editor";
 
 const formatDate = (value: string | null | undefined) => {
   if (!value) return "Not set";
@@ -33,9 +34,21 @@ const toCommaSeparatedList = (value: string) =>
     .map((item) => item.trim())
     .filter(Boolean);
 
+const hasRichTextContent = (value: string | null | undefined) => {
+  if (!value) return false;
+
+  const plainText = value
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .trim();
+
+  return plainText.length > 0;
+};
+
 export function DatasetPage() {
   const { publicUsername, datasetSlug } = useParams();
   const { token } = useAuth();
+  const [searchParams] = useSearchParams();
 
   const [dataset, setDataset] = useState<Dataset | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,6 +66,22 @@ export function DatasetPage() {
     source: "",
     is_public: true,
   });
+
+  useEffect(() => {
+    const requestedTab = searchParams.get("tab");
+
+    if (requestedTab === "settings") {
+      setActiveTab("settings");
+      return;
+    }
+
+    if (requestedTab === "discussions") {
+      setActiveTab("discussions");
+      return;
+    }
+
+    setActiveTab("overview");
+  }, [searchParams]);
 
   useEffect(() => {
     let cancelled = false;
@@ -258,9 +287,14 @@ export function DatasetPage() {
           <div className="grid lg:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)] gap-6 mt-6">
             <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
               <h2 className="text-lg font-bold text-gray-900 mb-4">Description</h2>
-              <p className="text-gray-700 whitespace-pre-wrap leading-7">
-                {dataset.description || "No description has been added yet."}
-              </p>
+              {hasRichTextContent(dataset.description) ? (
+                <div
+                  className="prose prose-sm max-w-none text-gray-700 leading-7 [&_a]:text-green-700 [&_a]:underline [&_ol]:list-decimal [&_ol]:pl-6 [&_ul]:list-disc [&_ul]:pl-6"
+                  dangerouslySetInnerHTML={{ __html: dataset.description }}
+                />
+              ) : (
+                <p className="text-gray-700 leading-7">No description has been added yet.</p>
+              )}
 
               {dataset.tags.length > 0 ? (
                 <>
@@ -357,12 +391,11 @@ export function DatasetPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
-              <textarea
-                rows={6}
+              <RichTextEditor
                 value={settingsForm.description}
-                onChange={(e) => setSettingsForm((prev) => ({ ...prev, description: e.target.value }))}
-                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                onChange={(description) => setSettingsForm((prev) => ({ ...prev, description }))}
                 placeholder="Dataset description"
+                minHeightClassName="min-h-40"
               />
             </div>
             <div className="grid md:grid-cols-2 gap-4">
