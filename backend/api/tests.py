@@ -68,6 +68,24 @@ class ModelUploadFlowTests(APITestCase):
         self.assertEqual(model.license, "Custom")
         self.assertTrue(model.updated)
 
+    def test_model_create_preserves_rich_text_description(self):
+        rich_description = "<p><strong>Shona GPT</strong> for <em>translation</em>.</p><ul><li>Fast</li><li>Local</li></ul>"
+
+        response = self.client.post(
+            "/api/models/",
+            {
+                "name": "Shona-GPT-7B",
+                "description": rich_description,
+                "category": "NLP",
+                "tags": ["shona", "language-model"],
+                "file_path": "models/1/shona-gpt.bin",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["description"], rich_description)
+
     @patch("api.views.storage.Client")
     def test_model_download_url_increments_downloads_and_returns_signed_url(self, mock_storage_client):
         model = Model.objects.create(
@@ -143,6 +161,53 @@ class DatasetUploadFlowTests(APITestCase):
         self.assertEqual(dataset.tags, ["zimbabwe", "demographics"])
         self.assertEqual(dataset.slug, "zimbabwe-census-2022")
         self.assertTrue(dataset.updated)
+
+    def test_dataset_create_preserves_rich_text_description(self):
+        rich_description = "<p>National dataset with <strong>district-level</strong> coverage.</p><ol><li>CSV export</li><li>Documentation</li></ol>"
+
+        response = self.client.post(
+            "/api/datasets/",
+            {
+                "name": "Zimbabwe Census 2022",
+                "subtitle": "Official census release",
+                "description": rich_description,
+                "category": "Tabular",
+                "size": "1.2 MB",
+                "format": ["csv"],
+                "tags": ["zimbabwe", "demographics"],
+                "file_path": "datasets/1/zimbabwe-census.csv",
+                "license": "CC BY 4.0",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["description"], rich_description)
+
+    def test_dataset_update_preserves_rich_text_description(self):
+        dataset = Dataset.objects.create(
+            name="Zimbabwe Census 2022",
+            author=self.user,
+            description="Initial description",
+            category="Tabular",
+            size="1.2 MB",
+            format=["csv"],
+            tags=["zimbabwe"],
+            updated="2026-04-08T00:00:00Z",
+            file_path="datasets/1/zimbabwe-census.csv",
+            license="CC BY 4.0",
+        )
+        rich_description = "<p>Updated <em>rich</em> content.</p><ul><li>Bullet one</li><li><a href=\"https://example.com\">Source link</a></li></ul>"
+
+        response = self.client.patch(
+            f"/api/datasets/{dataset.id}/",
+            {"description": rich_description},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        dataset.refresh_from_db()
+        self.assertEqual(dataset.description, rich_description)
 
     @patch("api.views.storage.Client")
     def test_dataset_download_url_increments_downloads_and_returns_signed_url(self, mock_storage_client):

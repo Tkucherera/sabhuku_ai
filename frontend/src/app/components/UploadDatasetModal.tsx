@@ -17,6 +17,7 @@ export interface UploadedDataset {
   fileName: string;
   fileSize: string;
   uploadedAt: string;
+  path?: string;
 }
 
 interface Props {

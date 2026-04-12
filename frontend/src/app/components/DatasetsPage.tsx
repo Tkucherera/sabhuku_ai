@@ -6,6 +6,7 @@ import { PlatformLayout } from "./PlatformLayout";
 import { buildDatasetPath, fetchDatasets, requestDatasetDownloadUrl, Dataset } from "../api/datasetApi";
 
 const normalizeCategory = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+const stripHtml = (value: string) => value.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ");
 
 export function DatasetsPage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -57,7 +58,7 @@ export function DatasetsPage() {
     const matchesSearch =
       searchQuery === "" ||
       dataset.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      dataset.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      stripHtml(dataset.description).toLowerCase().includes(searchQuery.toLowerCase()) ||
       dataset.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesCategory && matchesSearch;
   });
@@ -146,9 +147,6 @@ export function DatasetsPage() {
                   </div>
                   <Database className="w-6 h-6 text-green-600 shrink-0" />
                 </div>
-
-                <p className="text-gray-700 mb-4 line-clamp-3">{dataset.description || "No description yet."}</p>
-
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center justify-between text-sm gap-4">
                     <span className="text-gray-600">Size:</span>

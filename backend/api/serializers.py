@@ -1,6 +1,7 @@
 from datetime import timedelta
 
 from django.conf import settings
+from django.utils.html import strip_tags
 from rest_framework import serializers
 from django.utils import timezone
 from django.utils.text import slugify
@@ -20,6 +21,18 @@ def _build_signed_media_url(file_path):
         expiration=timedelta(hours=settings.GS_DOWNLOAD_URL_EXPIRATION_HOURS),
         method="GET",
     )
+
+
+def _normalize_rich_text(value):
+    if not isinstance(value, str):
+        raise serializers.ValidationError("description must be a string")
+
+    if not value:
+        return ""
+
+    # Preserve allowed markup, but collapse markup-only/whitespace-only input to empty.
+    plain_text = strip_tags(value).replace("\xa0", " ").strip()
+    return value if plain_text else ""
 
 
 class ModelSerializer(serializers.ModelSerializer):
@@ -59,6 +72,9 @@ class ModelSerializer(serializers.ModelSerializer):
             if tag_value:
                 cleaned_tags.append(tag_value)
         return cleaned_tags
+
+    def validate_description(self, value):
+        return _normalize_rich_text(value)
 
     def create(self, validated_data):
         validated_data.setdefault("updated", timezone.now().isoformat())
@@ -130,6 +146,9 @@ class DatasetSerializer(serializers.ModelSerializer):
             if tag_value:
                 cleaned_tags.append(tag_value)
         return cleaned_tags
+
+    def validate_description(self, value):
+        return _normalize_rich_text(value)
 
     def create(self, validated_data):
         validated_data.setdefault("updated", timezone.now().isoformat())
