@@ -20,6 +20,94 @@ const formatTimestamp = (value: string) => {
     : date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 };
 
+const allowedRichTextTags = new Set([
+  "a",
+  "b",
+  "blockquote",
+  "br",
+  "code",
+  "em",
+  "i",
+  "li",
+  "ol",
+  "p",
+  "pre",
+  "strong",
+  "u",
+  "ul",
+]);
+
+const sanitizeRichText = (value: string) => {
+  if (!value.trim() || typeof window === "undefined") {
+    return "";
+  }
+
+  const parser = new DOMParser();
+  const document = parser.parseFromString(value, "text/html");
+
+  const sanitizeNode = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return;
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      node.parentNode?.removeChild(node);
+      return;
+    }
+
+    const element = node as HTMLElement;
+    const tagName = element.tagName.toLowerCase();
+
+    if (!allowedRichTextTags.has(tagName)) {
+      const parent = element.parentNode;
+      if (!parent) return;
+
+      while (element.firstChild) {
+        parent.insertBefore(element.firstChild, element);
+      }
+
+      parent.removeChild(element);
+      return;
+    }
+
+    Array.from(element.attributes).forEach((attribute) => {
+      const name = attribute.name.toLowerCase();
+
+      if (tagName === "a" && name === "href") {
+        const href = element.getAttribute("href") ?? "";
+        if (/^(https?:|mailto:|tel:)/i.test(href)) {
+          element.setAttribute("target", "_blank");
+          element.setAttribute("rel", "noopener noreferrer");
+          return;
+        }
+      }
+
+      element.removeAttribute(attribute.name);
+    });
+
+    Array.from(element.childNodes).forEach(sanitizeNode);
+  };
+
+  Array.from(document.body.childNodes).forEach(sanitizeNode);
+
+  return document.body.innerHTML;
+};
+
+function RichTextDescription({ value }: { value: string }) {
+  const sanitizedValue = sanitizeRichText(value);
+
+  if (!sanitizedValue) {
+    return <p className="text-sm text-gray-600 mb-2">No description yet.</p>;
+  }
+
+  return (
+    <div
+      className="text-sm text-gray-600 mb-2 space-y-2 [&_a]:text-blue-600 [&_a]:underline [&_code]:rounded [&_code]:bg-gray-100 [&_code]:px-1 [&_li]:ml-5 [&_li]:list-disc [&_ol]:ml-5 [&_ol]:list-decimal [&_p]:mb-2 [&_p:last-child]:mb-0 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:bg-gray-100 [&_pre]:p-2 [&_ul]:ml-5"
+      dangerouslySetInnerHTML={{ __html: sanitizedValue }}
+    />
+  );
+}
+
 export function Dashboard() {
   const { token } = useAuth();
   const navigate = useNavigate();
@@ -155,7 +243,7 @@ export function Dashboard() {
                         <div className="flex items-start justify-between gap-4 mb-2">
                           <div>
                             <h3 className="font-bold text-gray-900 mb-1">{model.name}</h3>
-                            <p className="text-sm text-gray-600 mb-2">{model.description || "No description yet."}</p>
+                            <RichTextDescription value={model.description || ""} />
                             <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
                               <span className="flex items-center gap-1">
                                 <Users className="w-4 h-4" />
@@ -195,7 +283,7 @@ export function Dashboard() {
                         className="block p-6 hover:bg-gray-50 transition-colors"
                       >
                         <h3 className="font-bold text-gray-900 mb-1">{dataset.name}</h3>
-                        <p className="text-sm text-gray-600 mb-2">{dataset.description || "No description yet."}</p>
+                        <RichTextDescription value={dataset.description || ""} />
                         <div className="flex items-center gap-4 text-sm text-gray-500 flex-wrap">
                           <span>{dataset.size}</span>
                           <span>↓ {formatCompactNumber(dataset.downloads)}</span>
