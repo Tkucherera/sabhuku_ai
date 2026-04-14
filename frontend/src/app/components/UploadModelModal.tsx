@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { X, Upload, Box } from "lucide-react";
 import { useAuth } from "./AuthContext";
 import { createModel, requestModelUploadUrl, uploadModelFileToStorage } from "../api/modelApi";
+import { RichTextEditor } from "./ui/rich-text-editor";
 
 const CATEGORIES = ["NLP", "Computer Vision", "Audio", "Multimodal", "Tabular", "Reinforcement Learning", "Other"];
 
@@ -136,9 +137,12 @@ export function UploadModelModal({ onClose, onUploaded }: Props) {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
-                <textarea className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  rows={3} placeholder="Describe your model, what it does and how to use it..."
-                  value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                <RichTextEditor
+                  value={form.description}
+                  onChange={(description) => setForm({ ...form, description })}
+                  placeholder="Describe your model, what it does, and how to use it..."
+                  minHeightClassName="min-h-32"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
