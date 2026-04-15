@@ -129,6 +129,5 @@ class Dataset(models.Model):
 
     def __str__(self):
         return self.name
-    
 
-# TODO add an Authors section 
+# TODO add an Authors section

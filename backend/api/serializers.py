@@ -8,6 +8,8 @@ from django.utils.text import slugify
 from google.cloud import storage
 
 from .models import Model, Dataset, UserProfile
+from discussions.models import Discussion
+from discussions.serializers import DiscussionSerializer
 
 
 def _build_signed_media_url(file_path):
@@ -85,6 +87,7 @@ class ModelSerializer(serializers.ModelSerializer):
 class DatasetSerializer(serializers.ModelSerializer):
     author_username = serializers.CharField(source="author.username", read_only=True)
     author_public_username = serializers.CharField(source="author.profile.public_username", read_only=True)
+    discussions = serializers.SerializerMethodField()
 
     class Meta:
         model = Dataset
@@ -112,6 +115,7 @@ class DatasetSerializer(serializers.ModelSerializer):
             "authors",
             "source",
             "usability_score",
+            "discussions",
         ]
         read_only_fields = ["id", "slug", "author", "author_username", "author_public_username", "downloads", "updated", "usability_score"]
         extra_kwargs = {
@@ -149,6 +153,13 @@ class DatasetSerializer(serializers.ModelSerializer):
 
     def validate_description(self, value):
         return _normalize_rich_text(value)
+
+    def get_discussions(self, obj):
+        discussions = Discussion.objects.select_related("user", "user__profile").filter(
+            dataset=obj,
+            parent__isnull=True,
+        )
+        return DiscussionSerializer(discussions, many=True, context=self.context).data
 
     def create(self, validated_data):
         validated_data.setdefault("updated", timezone.now().isoformat())

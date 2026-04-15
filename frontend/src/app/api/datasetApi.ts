@@ -1,5 +1,18 @@
 import { apiClient } from "./client";
 
+export interface Discussion {
+  id: number;
+  content: string;
+  created_at: string;
+  parent: number | null;
+  dataset: number | null;
+  model: number | null;
+  author_username?: string;
+  author_public_username?: string;
+  author_display_name?: string;
+  replies: Discussion[];
+}
+
 export interface Dataset {
   id: number;
   name: string;
@@ -24,6 +37,7 @@ export interface Dataset {
   authors: string;
   source: string;
   usability_score: number;
+  discussions: Discussion[];
 }
 
 export function fetchDatasets(): Promise<Dataset[]> {
@@ -116,6 +130,26 @@ export async function requestDatasetDownloadUrl(datasetId: number): Promise<{ ur
 export function buildDatasetPath(dataset: Pick<Dataset, "author_public_username" | "slug">) {
   const owner = dataset.author_public_username || "user";
   return `/datasets/${encodeURIComponent(owner)}/${encodeURIComponent(dataset.slug)}`;
+}
+
+export function fetchDatasetDiscussions(datasetId: number, token?: string | null): Promise<Discussion[]> {
+  return apiClient(`/api/discussions/datasets/${datasetId}/`, undefined, token);
+}
+
+export function createDatasetDiscussion(
+  token: string,
+  datasetId: number,
+  content: string,
+  parentId?: number | null
+): Promise<Discussion> {
+  return apiClient(
+    `/api/discussions/datasets/${datasetId}/`,
+    {
+      method: "POST",
+      body: JSON.stringify({ content, parent: parentId ?? null }),
+    },
+    token
+  );
 }
 
 export async function uploadDatasetFileToStorage(

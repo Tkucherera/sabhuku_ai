@@ -1,8 +1,11 @@
 // context/AuthContext.tsx
 import { createContext, useContext, useState, ReactNode } from "react";
 
+import { clearStoredToken, isTokenExpired } from "../auth";
+
 interface AuthContextType {
   token: string | null;
+  isAuthenticated: boolean;
   login: (token: string) => void;
   logout: () => void;
 }
@@ -11,7 +14,14 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(
-    () => localStorage.getItem("token") // persist across refresh
+    () => {
+      const storedToken = localStorage.getItem("token");
+      if (isTokenExpired(storedToken)) {
+        clearStoredToken();
+        return null;
+      }
+      return storedToken;
+    }
   );
 
   const login = (jwt: string) => {
@@ -21,11 +31,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     setToken(null);
-    localStorage.removeItem("token");
+    clearStoredToken();
   };
 
   return (
-    <AuthContext.Provider value={{ token, login, logout }}>
+    <AuthContext.Provider value={{ token, isAuthenticated: Boolean(token), login, logout }}>
       {children}
     </AuthContext.Provider>
   );
