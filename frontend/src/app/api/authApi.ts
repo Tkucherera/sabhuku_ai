@@ -1,3 +1,5 @@
+import { apiClient } from "./client";
+
 export async function registerUser({
   firstName,
   lastName,
@@ -111,27 +113,20 @@ interface SignedUploadResponse {
 }
 
 export async function getProfile(token: string) {
-  const res = await fetch("/api/profile/", {
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  if (!res.ok) throw await res.json();
-  return res.json() as Promise<ProfileData & { username: string; email: string; date_joined: string }>;
+  return apiClient("/api/profile/", undefined, token) as Promise<
+    ProfileData & { username: string; email: string; date_joined: string }
+  >;
 }
 
 export async function updateProfile(token: string, data: Partial<ProfileData>) {
-  const res = await fetch("/api/profile/", {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+  return apiClient(
+    "/api/profile/",
+    {
+      method: "PATCH",
+      body: JSON.stringify(data),
     },
-    body: JSON.stringify(data),
-  });
-  if (!res.ok) throw await res.json();
-  return res.json();
+    token
+  );
 }
 
 export async function requestProfileImageUploadUrl(
@@ -139,20 +134,17 @@ export async function requestProfileImageUploadUrl(
   filename: string,
   contentType: string
 ) {
-  const res = await fetch("/api/profile/upload-url/", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
+  return apiClient(
+    "/api/profile/upload-url/",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        filename,
+        content_type: contentType || "application/octet-stream",
+      }),
     },
-    body: JSON.stringify({
-      filename,
-      content_type: contentType || "application/octet-stream",
-    }),
-  });
-
-  if (!res.ok) throw await res.json();
-  return res.json() as Promise<SignedUploadResponse>;
+    token
+  ) as Promise<SignedUploadResponse>;
 }
 
 export async function uploadProfileImageToStorage(

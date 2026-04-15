@@ -102,7 +102,10 @@ class ModelViewSet(viewsets.ModelViewSet):
 
 
 class DatasetViewSet(viewsets.ModelViewSet):
-    queryset = Dataset.objects.select_related("author", "author__profile").all().order_by("-id")
+    queryset = Dataset.objects.select_related("author", "author__profile").prefetch_related(
+        "dataset_discussions__user",
+        "dataset_discussions__user__profile",
+    ).all().order_by("-id")
     serializer_class = DatasetSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 

@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router";
-import { Calendar, Database, Download, EyeOff, Globe, Lock, Save, Tag, User2 } from "lucide-react";
+import { Calendar, CornerDownRight, Database, Download, EyeOff, Globe, Lock, MessageSquare, Save, Send, Tag, User2 } from "lucide-react";
 
 import { PlatformLayout } from "./PlatformLayout";
 import { useAuth } from "./AuthContext";
 import { getProfile } from "../api/authApi";
 import {
   Dataset,
+  Discussion,
+  createDatasetDiscussion,
   fetchDatasetByOwnerAndSlug,
+  fetchDatasetDiscussions,
   requestDatasetDownloadUrl,
   updateDataset,
 } from "../api/datasetApi";
@@ -26,6 +29,19 @@ const formatUpdated = (value: string) => {
   return Number.isNaN(date.getTime())
     ? value
     : date.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric" });
+};
+
+const formatTimestamp = (value: string) => {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
 };
 
 const toCommaSeparatedList = (value: string) =>
@@ -57,6 +73,13 @@ export function DatasetPage() {
   const [downloading, setDownloading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [isOwner, setIsOwner] = useState(false);
+  const [discussions, setDiscussions] = useState<Discussion[]>([]);
+  const [discussionDraft, setDiscussionDraft] = useState("");
+  const [replyDrafts, setReplyDrafts] = useState<Record<number, string>>({});
+  const [activeReplyId, setActiveReplyId] = useState<number | null>(null);
+  const [discussionLoading, setDiscussionLoading] = useState(false);
+  const [discussionSubmitting, setDiscussionSubmitting] = useState(false);
+  const [discussionError, setDiscussionError] = useState<string | null>(null);
   const [settingsForm, setSettingsForm] = useState({
     subtitle: "",
     description: "",
@@ -111,6 +134,7 @@ export function DatasetPage() {
           source: datasetResponse.source || "",
           is_public: datasetResponse.is_public,
         });
+        setDiscussions(datasetResponse.discussions || []);
         setIsOwner(profileResponse?.public_username === datasetResponse.author_public_username);
         setError(null);
       } catch {
@@ -130,6 +154,36 @@ export function DatasetPage() {
       cancelled = true;
     };
   }, [datasetSlug, publicUsername, token]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadDiscussions = async () => {
+      if (!dataset) return;
+
+      setDiscussionLoading(true);
+      try {
+        const discussionResponse = await fetchDatasetDiscussions(dataset.id, token);
+        if (cancelled) return;
+        setDiscussions(discussionResponse);
+        setDiscussionError(null);
+      } catch {
+        if (!cancelled) {
+          setDiscussionError("We couldn't load the discussion thread right now.");
+        }
+      } finally {
+        if (!cancelled) {
+          setDiscussionLoading(false);
+        }
+      }
+    };
+
+    void loadDiscussions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dataset, token]);
 
   const handleDownload = async () => {
     if (!dataset) return;
@@ -176,6 +230,81 @@ export function DatasetPage() {
       setSaving(false);
     }
   };
+
+  const handleCreateDiscussion = async (parentId?: number | null) => {
+    if (!dataset || !token) return;
+
+    const content = (parentId ? replyDrafts[parentId] : discussionDraft).trim();
+    if (!content) {
+      setDiscussionError(parentId ? "Write a reply before posting." : "Write a message before posting.");
+      return;
+    }
+
+    setDiscussionSubmitting(true);
+    try {
+      const createdDiscussion = await createDatasetDiscussion(token, dataset.id, content, parentId);
+      setDiscussions((prev) => {
+        if (!parentId) {
+          return [createdDiscussion, ...prev];
+        }
+
+        const appendReply = (items: Discussion[]): Discussion[] =>
+          items.map((item) =>
+            item.id === parentId
+              ? { ...item, replies: [...item.replies, createdDiscussion] }
+              : { ...item, replies: appendReply(item.replies) }
+          );
+
+        return appendReply(prev);
+      });
+      setDataset((prev) =>
+        prev
+          ? {
+              ...prev,
+              discussions: !parentId
+                ? [createdDiscussion, ...(prev.discussions || [])]
+                : prev.discussions.map((item) =>
+                    item.id === parentId
+                      ? { ...item, replies: [...item.replies, createdDiscussion] }
+                      : item
+                  ),
+            }
+          : prev
+      );
+      if (parentId) {
+        setReplyDrafts((prev) => ({ ...prev, [parentId]: "" }));
+        setActiveReplyId(null);
+      } else {
+        setDiscussionDraft("");
+      }
+      setDiscussionError(null);
+    } catch {
+      setDiscussionError(parentId ? "We couldn't post your reply. Please try again." : "We couldn't post your comment. Please try again.");
+    } finally {
+      setDiscussionSubmitting(false);
+    }
+  };
+
+  const renderReplies = (items: Discussion[]) =>
+    items.map((reply) => (
+      <div key={reply.id} className="ml-6 border-l border-green-200 pl-4">
+        <article className="rounded-2xl bg-green-50/70 p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="font-semibold text-gray-900">
+                {reply.author_display_name || reply.author_public_username || reply.author_username || "Community member"}
+              </p>
+              <p className="text-xs text-gray-500">
+                @{reply.author_public_username || reply.author_username || "user"}
+              </p>
+            </div>
+            <time className="text-xs text-gray-500">{formatTimestamp(reply.created_at)}</time>
+          </div>
+          <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-gray-700">{reply.content}</p>
+          {reply.replies.length > 0 ? <div className="mt-4 space-y-3">{renderReplies(reply.replies)}</div> : null}
+        </article>
+      </div>
+    ));
 
   if (loading) {
     return (
@@ -356,11 +485,130 @@ export function DatasetPage() {
         ) : null}
 
         {activeTab === "discussions" ? (
-          <div className="mt-6 bg-white rounded-2xl border border-gray-200 p-8 shadow-sm">
-            <h2 className="text-lg font-bold text-gray-900 mb-2">Discussions</h2>
-            <p className="text-gray-600">
-              Discussion threads are not wired up yet, but this tab is in place for dataset questions, change notes, and feedback.
-            </p>
+          <div className="mt-6 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="border-b border-gray-200 bg-gradient-to-r from-emerald-50 to-teal-50 px-6 py-5">
+              <div className="flex items-center gap-3">
+                <div className="h-11 w-11 rounded-2xl bg-green-100 text-green-700 flex items-center justify-center">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">Discussion thread</h2>
+                  <p className="text-sm text-gray-600">Questions, feedback, and update notes for this dataset.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="border-b border-gray-200 px-6 py-5 bg-white">
+              <textarea
+                value={discussionDraft}
+                onChange={(e) => setDiscussionDraft(e.target.value)}
+                placeholder={token ? "Start the conversation..." : "Sign in to write a comment"}
+                disabled={!token || discussionSubmitting}
+                rows={4}
+                className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm text-gray-800 focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
+              />
+
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-gray-600">
+                  {token
+                    ? "Share context, ask for clarifications, or leave feedback for the dataset owner."
+                    : "Sign in to join this conversation."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void handleCreateDiscussion()}
+                  disabled={!token || discussionSubmitting}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-green-600 px-5 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                >
+                  <Send className="w-4 h-4" />
+                  {discussionSubmitting ? "Posting..." : "Post message"}
+                </button>
+              </div>
+
+              {discussionError ? <p className="mt-3 text-sm text-red-600">{discussionError}</p> : null}
+            </div>
+
+            <div className="px-6 py-6">
+              {discussionLoading ? (
+                <div className="py-8 flex justify-center">
+                  <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : discussions.length > 0 ? (
+                <div className="space-y-5">
+                  {discussions.map((discussion) => (
+                    <article key={discussion.id} className="rounded-3xl border border-gray-200 bg-gray-50 p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            {discussion.author_display_name || discussion.author_public_username || discussion.author_username || "Community member"}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            @{discussion.author_public_username || discussion.author_username || "user"}
+                          </p>
+                        </div>
+                        <time className="text-xs text-gray-500">{formatTimestamp(discussion.created_at)}</time>
+                      </div>
+
+                      <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-gray-700">{discussion.content}</p>
+
+                      <div className="mt-4 flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setActiveReplyId((prev) => (prev === discussion.id ? null : discussion.id))}
+                          className="inline-flex items-center gap-2 text-sm font-medium text-green-700 hover:text-green-800"
+                        >
+                          <CornerDownRight className="w-4 h-4" />
+                          Reply
+                        </button>
+                        {discussion.replies.length > 0 ? (
+                          <span className="text-xs text-gray-500">
+                            {discussion.replies.length} {discussion.replies.length === 1 ? "reply" : "replies"}
+                          </span>
+                        ) : null}
+                      </div>
+
+                      {activeReplyId === discussion.id ? (
+                        <div className="mt-4 rounded-2xl border border-green-200 bg-white p-4">
+                          <textarea
+                            value={replyDrafts[discussion.id] || ""}
+                            onChange={(e) => setReplyDrafts((prev) => ({ ...prev, [discussion.id]: e.target.value }))}
+                            placeholder={token ? "Write a reply..." : "Sign in to reply"}
+                            disabled={!token || discussionSubmitting}
+                            rows={3}
+                            className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm text-gray-800 focus:ring-2 focus:ring-green-500 focus:border-transparent disabled:bg-gray-100 disabled:text-gray-500"
+                          />
+                          <div className="mt-3 flex justify-end gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setActiveReplyId(null)}
+                              className="rounded-xl px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleCreateDiscussion(discussion.id)}
+                              disabled={!token || discussionSubmitting}
+                              className="inline-flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-60"
+                            >
+                              <Send className="w-4 h-4" />
+                              Reply
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+
+                      {discussion.replies.length > 0 ? <div className="mt-4 space-y-3">{renderReplies(discussion.replies)}</div> : null}
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+                  <p className="text-gray-700 font-medium">No discussion yet</p>
+                  <p className="mt-2 text-sm text-gray-500">Start the thread with a question, note, or suggestion.</p>
+                </div>
+              )}
+            </div>
           </div>
         ) : null}
 
