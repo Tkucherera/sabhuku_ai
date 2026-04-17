@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'api',
     'discussions',
+    'hardware_orch',
 
     # all auth
     'allauth',
