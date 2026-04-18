@@ -1,4 +1,5 @@
 import { apiClient } from "./client";
+import { SignedUploadResponse, ProfileData } from "../../types";
 
 export async function registerUser({
   firstName,
@@ -88,29 +89,7 @@ export async function confirmPasswordReset({
   return res.json();
 }
 
-export interface ProfileData {
-  public_username: string;
-  first_name: string;
-  last_name: string;
-  bio: string;
-  location: string;
-  title: string;
-  avatar_path?: string;
-  avatar_url: string;
-  cover_image_path?: string;
-  cover_image_url: string;
-  twitter: string;
-  linkedin: string;
-  github: string;
-}
 
-interface SignedUploadResponse {
-  upload_url: string;
-  file_path: string;
-  file_url: string;
-  content_type: string;
-  expires_in_minutes: number;
-}
 
 export async function getProfile(token: string) {
   return apiClient("/api/profile/", undefined, token) as Promise<

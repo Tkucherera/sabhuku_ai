@@ -1,44 +1,6 @@
 import { apiClient } from "./client";
+import { Dataset, Discussion } from "../../types";
 
-export interface Discussion {
-  id: number;
-  content: string;
-  created_at: string;
-  parent: number | null;
-  dataset: number | null;
-  model: number | null;
-  author_username?: string;
-  author_public_username?: string;
-  author_display_name?: string;
-  replies: Discussion[];
-}
-
-export interface Dataset {
-  id: number;
-  name: string;
-  slug: string;
-  subtitle: string;
-  description: string;
-  category: string;
-  size: string;
-  downloads: number;
-  format: string[];
-  tags: string[];
-  updated: string;
-  file_path: string;
-  license: string;
-  author: number;
-  author_username?: string;
-  author_public_username?: string;
-  dataset_thumbnail: string;
-  is_public: boolean;
-  coverage_start_date: string | null;
-  coverage_end_date: string | null;
-  authors: string;
-  source: string;
-  usability_score: number;
-  discussions: Discussion[];
-}
 
 export function fetchDatasets(): Promise<Dataset[]> {
   return apiClient("/api/datasets/");

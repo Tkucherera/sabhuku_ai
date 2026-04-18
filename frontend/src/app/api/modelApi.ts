@@ -1,25 +1,10 @@
 import { apiClient } from "./client";
-import { Model } from "../../types";
-
+import { Model, CreateModelPayload, SignedUploadResponse, ModelProfileRequest, HardwareProfileResponse } from "../../types";
 export function fetchModels(): Promise<Model[]> {
   return apiClient("/api/models/");
 }
 
-interface SignedUploadResponse {
-  upload_url: string;
-  file_path: string;
-  content_type: string;
-  expires_in_minutes: number;
-}
 
-interface CreateModelPayload {
-  name: string;
-  description: string;
-  category: string;
-  tags: string[];
-  file_path: string;
-  license?: string;
-}
 
 export function requestModelUploadUrl(
   token: string,
@@ -69,4 +54,19 @@ export async function uploadModelFileToStorage(
   if (!response.ok) {
     throw new Error("Failed to upload file to storage");
   }
+}
+
+// This is the function that does the work in backend of making profiles 
+export async function createHardwareProfile(
+  token: string,
+  payload: ModelProfileRequest
+): Promise<HardwareProfileResponse>{
+  return apiClient("/api/hardware/recommend/", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  }, token);
+}
+
+export async function getModelHardwareProfile(modelId: number): Promise<HardwareProfileResponse> {
+  return apiClient(`/api/hardware/profiles/${modelId}/`);
 }
