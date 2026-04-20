@@ -85,3 +85,5 @@ triton==3.6.0
 typer==0.24.1
 typing_extensions==4.15.0
 urllib3==2.6.3
+django-unfold==0.90.0
+whitenoise==6.9.0

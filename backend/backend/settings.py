@@ -15,6 +15,10 @@ from datetime import timedelta
 
 import os
 
+from django.templatetags.static import static
+from django.urls import reverse_lazy
+from django.utils.translation import gettext_lazy as _
+
 
 def env_list(name, default=""):
     raw_value = os.getenv(name, default)
@@ -39,6 +43,7 @@ ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', 'localhost,127.0.0.1')
 # Application definition
 
 INSTALLED_APPS = [
+    'unfold',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -54,6 +59,7 @@ INSTALLED_APPS = [
     'api',
     'discussions',
     'hardware_orch',
+    'observability.apps.ObservabilityConfig',
 
     # all auth
     'allauth',
@@ -69,10 +75,12 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'observability.middleware.RequestContextMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -219,6 +227,133 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+UNFOLD = {
+    "SITE_TITLE": "Sabhuku Admin",
+    "SITE_HEADER": "SABHUKU AI",
+    "SITE_SUBHEADER": "Operations Console",
+    "SITE_URL": "/dashboard",
+    "SITE_SYMBOL": "neurology",
+    "SHOW_HISTORY": True,
+    "SHOW_VIEW_ON_SITE": False,
+    "BORDER_RADIUS": "14px",
+    "THEME": "light",
+    "STYLES": [
+        lambda request: static("admin/css/sabhuku-admin.css"),
+    ],
+    "DASHBOARD_CALLBACK": "observability.dashboard.admin_dashboard_callback",
+    "COLORS": {
+        "base": {
+            "50": "#f8fafc",
+            "100": "#f1f5f9",
+            "200": "#e2e8f0",
+            "300": "#cbd5e1",
+            "400": "#94a3b8",
+            "500": "#64748b",
+            "600": "#475569",
+            "700": "#334155",
+            "800": "#1e293b",
+            "900": "#0f172a",
+            "950": "#020617",
+        },
+        "primary": {
+            "50": "#eff6ff",
+            "100": "#dbeafe",
+            "200": "#bfdbfe",
+            "300": "#93c5fd",
+            "400": "#60a5fa",
+            "500": "#3b82f6",
+            "600": "#2563eb",
+            "700": "#1d4ed8",
+            "800": "#1e40af",
+            "900": "#1e3a8a",
+            "950": "#172554",
+        },
+        "font": {
+            "subtle-light": "#64748b",
+            "default-light": "#334155",
+            "important-light": "#0f172a",
+        },
+    },
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": False,
+        "navigation": [
+            {
+                "title": _("Workspace"),
+                "separator": True,
+                "items": [
+                    {
+                        "title": _("Overview"),
+                        "icon": "dashboard",
+                        "link": reverse_lazy("admin:index"),
+                    },
+                    {
+                        "title": _("Observability"),
+                        "icon": "monitoring",
+                        "link": reverse_lazy("admin:observability_dashboard"),
+                    },
+                ],
+            },
+            {
+                "title": _("Content"),
+                "items": [
+                    {
+                        "title": _("Models"),
+                        "icon": "inventory_2",
+                        "link": reverse_lazy("admin:api_model_changelist"),
+                    },
+                    {
+                        "title": _("Datasets"),
+                        "icon": "database",
+                        "link": reverse_lazy("admin:api_dataset_changelist"),
+                    },
+                    {
+                        "title": _("Discussions"),
+                        "icon": "forum",
+                        "link": reverse_lazy("admin:discussions_discussion_changelist"),
+                    },
+                ],
+            },
+            {
+                "title": _("System"),
+                "items": [
+                    {
+                        "title": _("Users"),
+                        "icon": "group",
+                        "link": reverse_lazy("admin:auth_user_changelist"),
+                    },
+                    {
+                        "title": _("Groups"),
+                        "icon": "shield",
+                        "link": reverse_lazy("admin:auth_group_changelist"),
+                    },
+                    {
+                        "title": _("Hardware Profiles"),
+                        "icon": "memory",
+                        "link": reverse_lazy("admin:hardware_orch_hardwareprofile_changelist"),
+                    },
+                    {
+                        "title": _("Model Profiling"),
+                        "icon": "tune",
+                        "link": reverse_lazy("admin:hardware_orch_modelprofile_changelist"),
+                    },
+                    {
+                        "title": _("App Logs"),
+                        "icon": "receipt_long",
+                        "link": reverse_lazy("admin:observability_applicationlog_changelist"),
+                    },
+                    {
+                        "title": _("Event Logs"),
+                        "icon": "event_note",
+                        "link": reverse_lazy("admin:observability_eventlog_changelist"),
+                    },
+                ],
+            },
+        ],
+    },
+}
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'False') == 'True'
@@ -233,3 +368,85 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 GS_BUCKET_NAME = os.getenv("GS_BUCKET_NAME", "sabhuku-bucket")
 GS_UPLOAD_URL_EXPIRATION_MINUTES = int(os.getenv("GS_UPLOAD_URL_EXPIRATION_MINUTES", "15"))
 GS_DOWNLOAD_URL_EXPIRATION_HOURS = int(os.getenv("GS_DOWNLOAD_URL_EXPIRATION_HOURS", "1"))
+
+
+
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+LOG_DB_LEVEL = os.getenv("LOG_DB_LEVEL", "WARNING")
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "request_context": {
+            "()": "observability.handlers.RequestContextFilter",
+        },
+        "stdout_max_level": {
+            "()": "observability.handlers.MaxLevelFilter",
+            "max_level": "WARNING",
+        },
+        "stderr_min_level": {
+            "()": "observability.handlers.MinLevelFilter",
+            "min_level": "ERROR",
+        },
+    },
+    "formatters": {
+        "structured": {
+            "format": "[{asctime}] {levelname} {name} req={request_id} user={user_id} "
+                      "status={status_code} {request_method} {request_path} - {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "stdout": {
+            "class": "logging.StreamHandler",
+            "level": LOG_LEVEL,
+            "stream": "ext://sys.stdout",
+            "filters": ["request_context", "stdout_max_level"],
+            "formatter": "structured",
+        },
+        "stderr": {
+            "class": "logging.StreamHandler",
+            "level": "ERROR",
+            "stream": "ext://sys.stderr",
+            "filters": ["request_context", "stderr_min_level"],
+            "formatter": "structured",
+        },
+        "database": {
+            "class": "observability.handlers.DatabaseLogHandler",
+            "level": LOG_DB_LEVEL,
+            "filters": ["request_context"],
+        },
+    },
+    "root": {
+        "handlers": ["stdout", "stderr", "database"],
+        "level": LOG_LEVEL,
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["stdout", "stderr", "database"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["stderr", "database"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "django.server": {
+            "handlers": ["stdout", "stderr"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "gunicorn.error": {
+            "handlers": ["stderr", "database"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "gunicorn.access": {
+            "handlers": ["stdout"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+    },
+}

@@ -1,0 +1,82 @@
+{% extends "unfold/layouts/base_simple.html" %}
+
+{% load i18n %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<div class="sabhuku-admin-shell">
+  <section class="sabhuku-hero">
+    <div>
+      <p class="sabhuku-eyebrow">Operations Console</p>
+      <h1>Sabhuku Admin</h1>
+      <p class="sabhuku-subtitle">A calmer control room for content, users, infrastructure, and observability.</p>
+    </div>
+    <div class="sabhuku-hero-actions">
+      <a class="sabhuku-button sabhuku-button-primary" href="{% url 'admin:observability_dashboard' %}">Open observability</a>
+      <a class="sabhuku-button" href="/dashboard">Open product dashboard</a>
+    </div>
+  </section>
+
+  <section class="sabhuku-card-grid">
+    {% for card in dashboard_cards %}
+      <article class="sabhuku-card">
+        <p class="sabhuku-card-label">{{ card.label }}</p>
+        <p class="sabhuku-card-value">{{ card.value }}</p>
+        <p class="sabhuku-card-detail">{{ card.detail }}</p>
+      </article>
+    {% endfor %}
+  </section>
+
+  <section class="sabhuku-panel-grid">
+    <article class="sabhuku-panel">
+      <div class="sabhuku-panel-header">
+        <div>
+          <p class="sabhuku-panel-kicker">Recent activity</p>
+          <h2>Application logs</h2>
+        </div>
+        <a href="{% url 'admin:observability_applicationlog_changelist' %}">View all</a>
+      </div>
+      <div class="sabhuku-list">
+        {% for log in dashboard_recent_logs %}
+          <div class="sabhuku-list-item">
+            <div class="sabhuku-list-meta">
+              <span class="sabhuku-badge sabhuku-badge-{{ log.severity }}">{{ log.severity|upper }}</span>
+              <span>{{ log.logger_name }}</span>
+            </div>
+            <p>{{ log.message|truncatechars:120 }}</p>
+          </div>
+        {% empty %}
+          <p class="sabhuku-empty">No logs captured yet.</p>
+        {% endfor %}
+      </div>
+    </article>
+
+    <article class="sabhuku-panel">
+      <div class="sabhuku-panel-header">
+        <div>
+          <p class="sabhuku-panel-kicker">Recent activity</p>
+          <h2>Event stream</h2>
+        </div>
+        <a href="{% url 'admin:observability_eventlog_changelist' %}">View all</a>
+      </div>
+      <div class="sabhuku-list">
+        {% for event in dashboard_recent_events %}
+          <div class="sabhuku-list-item">
+            <div class="sabhuku-list-meta">
+              <span class="sabhuku-badge sabhuku-badge-{{ event.severity }}">{{ event.category }}.{{ event.action }}</span>
+              <span>{{ event.created_at }}</span>
+            </div>
+            <p>{{ event.message|default:"No message"|truncatechars:120 }}</p>
+          </div>
+        {% empty %}
+          <p class="sabhuku-empty">No events captured yet.</p>
+        {% endfor %}
+      </div>
+    </article>
+  </section>
+
+  {{ block.super }}
+</div>
+{% endblock %}
+

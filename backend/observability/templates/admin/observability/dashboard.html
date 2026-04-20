@@ -1,0 +1,140 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<div id="content-main">
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:24px;">
+    <div class="module" style="padding:16px;">
+      <h2>Logs (24h)</h2>
+      <p style="font-size:2rem;margin:0;">{{ summary.logs_last_24h }}</p>
+    </div>
+    <div class="module" style="padding:16px;">
+      <h2>Errors (24h)</h2>
+      <p style="font-size:2rem;margin:0;">{{ summary.errors_last_24h }}</p>
+    </div>
+    <div class="module" style="padding:16px;">
+      <h2>Events (24h)</h2>
+      <p style="font-size:2rem;margin:0;">{{ summary.events_last_24h }}</p>
+    </div>
+    <div class="module" style="padding:16px;">
+      <h2>Events (7d)</h2>
+      <p style="font-size:2rem;margin:0;">{{ summary.events_last_7d }}</p>
+    </div>
+  </div>
+
+  <div style="margin-bottom:20px;">
+    <a class="button" href="{{ application_log_changelist_url }}">Browse application logs</a>
+    <a class="button" href="{{ event_log_changelist_url }}">Browse event logs</a>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:24px;">
+    <div class="module">
+      <h2>Top loggers (7d)</h2>
+      <table>
+        <thead><tr><th>Logger</th><th>Count</th></tr></thead>
+        <tbody>
+          {% for row in top_loggers %}
+          <tr><td>{{ row.logger_name }}</td><td>{{ row.total }}</td></tr>
+          {% empty %}
+          <tr><td colspan="2">No logs yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="module">
+      <h2>Log levels (7d)</h2>
+      <table>
+        <thead><tr><th>Level</th><th>Count</th></tr></thead>
+        <tbody>
+          {% for row in log_levels %}
+          <tr><td>{{ row.severity }}</td><td>{{ row.total }}</td></tr>
+          {% empty %}
+          <tr><td colspan="2">No logs yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="module">
+      <h2>Event categories (7d)</h2>
+      <table>
+        <thead><tr><th>Category</th><th>Count</th></tr></thead>
+        <tbody>
+          {% for row in event_categories %}
+          <tr><td>{{ row.category }}</td><td>{{ row.total }}</td></tr>
+          {% empty %}
+          <tr><td colspan="2">No events yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="module">
+      <h2>Event actions (7d)</h2>
+      <table>
+        <thead><tr><th>Action</th><th>Count</th></tr></thead>
+        <tbody>
+          {% for row in event_actions %}
+          <tr><td>{{ row.action }}</td><td>{{ row.total }}</td></tr>
+          {% empty %}
+          <tr><td colspan="2">No events yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="module" style="margin-bottom:24px;">
+    <h2>Log trend (7d)</h2>
+    <table>
+      <thead><tr><th>Day</th><th>Count</th></tr></thead>
+      <tbody>
+        {% for row in log_trend %}
+        <tr><td>{{ row.day }}</td><td>{{ row.total }}</td></tr>
+        {% empty %}
+        <tr><td colspan="2">No log activity yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px;">
+    <div class="module">
+      <h2>Recent errors</h2>
+      <table>
+        <thead><tr><th>When</th><th>Logger</th><th>Message</th></tr></thead>
+        <tbody>
+          {% for log in recent_errors %}
+          <tr>
+            <td>{{ log.created_at }}</td>
+            <td>{{ log.logger_name }}</td>
+            <td>{{ log.message|truncatechars:120 }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3">No errors yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="module">
+      <h2>Recent events</h2>
+      <table>
+        <thead><tr><th>When</th><th>Event</th><th>Message</th></tr></thead>
+        <tbody>
+          {% for event in recent_events %}
+          <tr>
+            <td>{{ event.created_at }}</td>
+            <td>{{ event.category }}.{{ event.action }}</td>
+            <td>{{ event.message|truncatechars:120 }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3">No events yet.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
