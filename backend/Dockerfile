@@ -10,5 +10,6 @@ RUN pip install -r requirements.txt
 COPY . .
 
 RUN python manage.py collectstatic --noinput
+RUN chmod +x /app/entrypoint.sh
 
-CMD ["gunicorn", "backend.wsgi:application", "--bind", "0.0.0.0:8080", "--access-logfile", "-", "--error-logfile", "-", "--capture-output", "--log-level", "info"]
+CMD ["/app/entrypoint.sh"]

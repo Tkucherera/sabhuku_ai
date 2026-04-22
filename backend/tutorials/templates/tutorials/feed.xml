@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Sabhuku AI Community Tutorials</title>
+    <link>{{ site_url }}{% url 'tutorials:index' %}</link>
+    <description>Community tutorials and AI implementation guides from Sabhuku AI.</description>
+    <lastBuildDate>{{ updated_at|date:"r" }}</lastBuildDate>
+    {% for tutorial in tutorials %}
+    <item>
+      <title>{{ tutorial.title }}</title>
+      <link>{{ site_url }}{{ tutorial.absolute_url }}</link>
+      <guid>{{ site_url }}{{ tutorial.absolute_url }}</guid>
+      <description>{{ tutorial.excerpt }}</description>
+      <pubDate>{{ tutorial.published_at|date:"r" }}</pubDate>
+    </item>
+    {% endfor %}
+  </channel>
+</rss>
+

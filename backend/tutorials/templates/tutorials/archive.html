@@ -1,0 +1,30 @@
+{% extends "tutorials/base.html" %}
+{% block content %}
+<main class="shell archive-shell">
+  <section class="archive-head">
+    <span class="eyebrow">Knowledge archive</span>
+    <h1>{{ archive_title }}</h1>
+    <p>{{ archive_description }}</p>
+  </section>
+  <section class="tutorial-card-list">
+    {% for tutorial in tutorials %}
+    <article class="tutorial-card">
+      <a href="{{ tutorial.absolute_url }}" class="card-image">
+        <img src="{{ tutorial.thumbnail_storage_url|default:tutorial.cover_storage_url|default:tutorial.cover_image_url|default:'' }}" alt="{{ tutorial.cover_image_alt|default:tutorial.title }}" loading="lazy">
+      </a>
+      <div class="card-copy">
+        <p class="meta-row">{{ tutorial.published_at|date:"M j, Y" }} • {{ tutorial.read_time_minutes }} min read</p>
+        <h2><a href="{{ tutorial.absolute_url }}">{{ tutorial.title }}</a></h2>
+        <p>{{ tutorial.excerpt }}</p>
+      </div>
+    </article>
+    {% empty %}
+    <article class="empty-state">
+      <h2>No tutorials yet</h2>
+      <p>More articles will appear here once they are published.</p>
+    </article>
+    {% endfor %}
+  </section>
+</main>
+{% endblock %}
+

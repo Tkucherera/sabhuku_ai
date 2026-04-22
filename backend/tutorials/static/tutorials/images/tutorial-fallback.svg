@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">Sabhuku AI tutorial fallback image</title>
+  <desc id="desc">Abstract fallback image for community tutorials.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#eff6ff"/>
+      <stop offset="100%" stop-color="#dbeafe"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#0f2f78"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="675" fill="url(#bg)"/>
+  <circle cx="1030" cy="120" r="110" fill="#f59e0b" fill-opacity="0.18"/>
+  <circle cx="180" cy="540" r="140" fill="#1d4ed8" fill-opacity="0.12"/>
+  <rect x="120" y="120" width="960" height="435" rx="36" fill="#ffffff" fill-opacity="0.82"/>
+  <rect x="180" y="190" width="190" height="190" rx="40" fill="url(#card)"/>
+  <path d="M265 225c17-18 47-18 64 0 14 2 26 15 26 31 0 8-3 15-9 20 2 4 3 8 3 13 0 16-12 29-28 31-8 14-23 22-39 22-16 0-31-9-39-23-15-2-26-15-26-30 0-6 2-11 5-16-7-5-11-13-11-22 0-16 12-29 28-31 8-10 17-16 26-17z" fill="#eff6ff"/>
+  <path d="M274 244v118m-30-87c11 1 20 10 21 21m29-36c11 2 19 11 20 22m-70 41c10 2 18 10 20 20m40-22c10 2 17 10 19 19m-49-25c10 2 18 10 20 20" stroke="#1d4ed8" stroke-width="8" stroke-linecap="round"/>
+  <rect x="430" y="210" width="470" height="28" rx="14" fill="#dbeafe"/>
+  <rect x="430" y="260" width="390" height="18" rx="9" fill="#d7dee9"/>
+  <rect x="430" y="300" width="420" height="18" rx="9" fill="#d7dee9"/>
+  <rect x="430" y="340" width="330" height="18" rx="9" fill="#d7dee9"/>
+  <rect x="180" y="430" width="720" height="18" rx="9" fill="#d7dee9"/>
+  <rect x="180" y="470" width="620" height="18" rx="9" fill="#d7dee9"/>
+  <rect x="180" y="510" width="540" height="18" rx="9" fill="#d7dee9"/>
+</svg>

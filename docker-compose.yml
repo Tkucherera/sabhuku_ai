@@ -33,6 +33,7 @@ services:
       LOG_DB_LEVEL: ${LOG_DB_LEVEL:-WARNING}
     volumes:
       - ${GOOGLE_APPLICATION_CREDENTIALS_HOST}:/app/credentials/gcs-key.json:ro
+      - ./backend/hardware_orch/test_models/:/app/models
     depends_on:
        - db
     restart: always

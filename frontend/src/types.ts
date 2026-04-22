@@ -152,6 +152,58 @@ export interface SignedUploadResponse {
   expires_in_minutes: number;
 }
 
+export interface TutorialTag {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export interface Tutorial {
+  id: number;
+  title: string;
+  slug: string;
+  excerpt: string;
+  body_markdown: string;
+  status: "draft" | "published" | "archived";
+  seo_title: string;
+  meta_description: string;
+  seo_keywords: string;
+  revision_number: number;
+  read_time_minutes: number;
+  published_at: string | null;
+  last_revised_at: string | null;
+  updated_at: string;
+  author_name: string;
+  author_public_username: string;
+  author_avatar_url: string;
+  tags: TutorialTag[];
+  public_tags: string[];
+  cover_image: string;
+  thumbnail_image: string;
+  cover_image_url: string;
+  cover_image_path: string;
+  cover_image_alt: string;
+  thumbnail_image_url: string;
+  thumbnail_image_path: string;
+}
+
+export interface TutorialPayload {
+  title: string;
+  slug: string;
+  excerpt: string;
+  body_markdown: string;
+  status: "draft" | "published" | "archived";
+  seo_title: string;
+  meta_description: string;
+  seo_keywords: string;
+  cover_image_url: string;
+  cover_image_path: string;
+  cover_image_alt: string;
+  thumbnail_image_url: string;
+  thumbnail_image_path: string;
+  tags: string[];
+}
+
 
 export interface CreateModelPayload {
   name: string;
