@@ -35,8 +35,8 @@ def current_site_url():
 
 
 def choose_image(path_value, url_value):
-    if path_value and getattr(settings, "GS_BUCKET_NAME", ""):
-        return f"https://storage.googleapis.com/{settings.GS_BUCKET_NAME}/{quote(path_value, safe='/')}"
+    if path_value and getattr(settings, "GS_MEDIA_BUCKET_NAME", ""):
+        return f"https://storage.googleapis.com/{settings.GS_MEDIA_BUCKET_NAME}/{quote(path_value, safe='/')}"
     return url_value or static("tutorials/images/tutorial-fallback.svg")
 
 
@@ -220,6 +220,30 @@ class TutorialViewSet(viewsets.ModelViewSet):
                 "expires_in_minutes": settings.GS_UPLOAD_URL_EXPIRATION_MINUTES,
             }
         )
+    
+
+    @action(detail=False, methods=["post"], url_path="upload-image")
+    def upload_image(self, request):
+        file = request.FILES.get("file")
+        if not file:
+            return Response({"error": "No file provided."}, status=status.HTTP_400_BAD_REQUEST)
+
+        content_type = file.content_type or "application/octet-stream"
+        blob_path = _build_blob_path("tutorials/media", request.user.id, file.name)
+
+        client = storage.Client()
+        bucket = client.bucket(settings.GS_MEDIA_BUCKET_NAME)
+        blob = bucket.blob(blob_path)
+        blob.upload_from_file(file, content_type=content_type)
+        # No ACL needed if bucket is public, otherwise:
+        # blob.acl.all().grant_read()
+        # blob.acl.save()
+
+        file_url = f"https://storage.googleapis.com/{settings.GS_MEDIA_BUCKET_NAME}/{quote(blob_path, safe='/')}"
+        return Response({
+            "file_path": blob_path,
+            "file_url": file_url,
+        })
 
 
 def tutorial_index(request):
