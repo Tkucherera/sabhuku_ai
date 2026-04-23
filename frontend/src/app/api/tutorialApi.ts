@@ -60,3 +60,22 @@ export async function uploadTutorialImageToStorage(uploadUrl: string, file: File
     throw new Error("Failed to upload image to storage");
   }
 }
+
+export async function uploadTutorialImage(token: string, file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch("/api/tutorials/upload-image/", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+    // Do NOT set Content-Type — browser sets it with the boundary automatically
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error ?? "Image upload failed.");
+  }
+
+  return response.json() as Promise<{ file_path: string; file_url: string }>;
+}
