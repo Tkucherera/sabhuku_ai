@@ -1,113 +1,554 @@
 {% extends "tutorials/base.html" %}
-{% load tutorial_extras %}
-{% block title %}{{ tutorial.title }} | Community Tutorials{% endblock %}
-{% block social_image %}<meta property="og:image" content="{{ thumbnail_image }}"><meta name="twitter:image" content="{{ thumbnail_image }}">{% endblock %}
-{% block structured_data %}<script type="application/ld+json">{{ article_schema_json|safe }}</script>{% endblock %}
-{% block content %}
-<main class="article-shell">
-  <section class="article-hero">
-    <div class="shell">
-      <div class="article-hero-copy">
-        <p class="eyebrow">Community Tutorial</p>
-        <h1>{{ tutorial.title }}</h1>
-        <p class="article-excerpt">{{ tutorial.excerpt }}</p>
-        <div class="article-meta article-meta-wrap">
-          <span>{{ tutorial.published_at|date:"F j, Y" }}</span>
-          <span>Updated {{ tutorial.last_revised_at|default:tutorial.updated_at|date:"F j, Y" }}</span>
-          <span>Rev {{ tutorial.revision_number }}</span>
-          <span>{{ tutorial.read_time_minutes }} min read</span>
-          <a href="{% url 'tutorials:author' public_username=tutorial.author.profile.public_username %}">{{ tutorial.author.get_full_name|default:tutorial.author.username }}</a>
-        </div>
-        <div class="chip-row">
-          {% for tag in tutorial.tags.all %}
-          <a href="{% url 'tutorials:tag' slug=tag.slug %}" class="chip chip-link">{{ tag.name }}</a>
-          {% endfor %}
-          {% for tag in tutorial.auto_tags %}
-          <span class="chip">{{ tag }}</span>
-          {% endfor %}
-        </div>
-      </div>
-      <div class="cover-frame">
-        <img src="{{ cover_image }}" alt="{{ tutorial.cover_image_alt|default:tutorial.title }}" class="cover-image" loading="eager">
-      </div>
-    </div>
-  </section>
-  <section class="shell article-layout">
-    <aside class="toc-column">
-      <div class="sticky-card">
-        <p class="sidebar-title">On this page</p>
-        <nav class="toc-nav" aria-label="Table of contents">
-          {% for item in toc %}
-          <a href="#{{ item.id }}" class="toc-link level-{{ item.level }}" data-toc-link="{{ item.id }}">
-            <span class="toc-marker" aria-hidden="true">
-              <span class="brain-icon">{% include "tutorials/partials/brain.svg" %}</span>
-            </span>
-            <span>{{ item.title }}</span>
-          </a>
-          {% endfor %}
-        </nav>
-      </div>
-    </aside>
-    <article class="article-content">
-      <div class="prose" id="tutorial-content">{{ article_html|safe }}</div>
-    </article>
-    <aside class="right-column">
-      <section class="sidebar-panel">
-        <h2>More to read</h2>
-        <div class="related-list">
-          {% for related in related_tutorials %}
-          <a href="{{ related.absolute_url }}" class="related-card">
-            <img src="{{ related.thumbnail_storage_url|default:related.cover_storage_url|default:related.cover_image_url|default:fallback_image }}" alt="{{ related.cover_image_alt|default:related.title }}" loading="lazy">
-            <div>
-              <strong>{{ related.title }}</strong>
-              <span>{{ related.read_time_minutes }} min read</span>
-            </div>
-          </a>
-          {% empty %}
-          <p class="sidebar-copy">Related tutorials will appear as more articles are published.</p>
-          {% endfor %}
-        </div>
-      </section>
-      <section class="sidebar-panel cta-panel">
-        <h2>Share models or datasets</h2>
-        <p>Contribute to the ecosystem for free and help the community build faster.</p>
-        <div class="cta-actions">
-          <a href="/models" class="button-primary">Share a model</a>
-          <a href="/datasets" class="button-secondary">Share a dataset</a>
-        </div>
-      </section>
-    </aside>
-  </section>
-</main>
-<script>
-  (function () {
-    const fallbackImage = {{ fallback_image|to_json|safe }};
-    const articleImages = Array.from(document.querySelectorAll('#tutorial-content img, .related-card img, .cover-image'));
-    articleImages.forEach((img) => {
-      img.addEventListener('error', function onError() {
-        if (img.dataset.fallbackApplied === 'true') return;
-        img.dataset.fallbackApplied = 'true';
-        img.src = fallbackImage;
-      });
-      if (!img.complete) {
-        img.classList.add('is-loading');
-        img.addEventListener('load', () => img.classList.remove('is-loading'), { once: true });
-        img.addEventListener('error', () => img.classList.remove('is-loading'), { once: true });
-      }
-    });
-    const tocLinks = Array.from(document.querySelectorAll('[data-toc-link]'));
-    const sections = tocLinks.map((link) => document.getElementById(link.getAttribute('data-toc-link'))).filter(Boolean);
-    if (!sections.length) return;
-    const observer = new IntersectionObserver((entries) => {
-      const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-      if (!visible) return;
-      tocLinks.forEach((link) => {
-        const active = link.getAttribute('data-toc-link') === visible.target.id;
-        link.classList.toggle('is-active', active);
-      });
-    }, { rootMargin: '-25% 0px -55% 0px', threshold: [0.1, 0.35, 0.6] });
-    sections.forEach((section) => observer.observe(section));
-  }());
-</script>
+{% load static tutorial_extras %}
+
+{% block title %}{{ tutorial.title }} | Community Tutorials | Sabhuku AI{% endblock %}
+{% block social_image %}
+  <meta property="og:image" content="{{ thumbnail_image }}">
+  <meta name="twitter:image" content="{{ thumbnail_image }}">
+{% endblock %}
+{% block structured_data %}
+  <script type="application/ld+json">{{ article_schema_json|safe }}</script>
 {% endblock %}
 
+{% block content %}
+<style>
+  :root {
+    --blue-600: #2563eb;
+    --blue-50:  #eff6ff;
+    --gray-900: #111827;
+    --gray-700: #374151;
+    --gray-500: #6b7280;
+    --gray-400: #9ca3af;
+    --gray-200: #e5e7eb;
+    --gray-100: #f3f4f6;
+    --gray-50:  #f9fafb;
+    --white:    #ffffff;
+    --radius:   0.75rem;
+  }
+
+  /* ── Reading progress ── */
+  .read-bar {
+    position: fixed; top: 64px; left: 0;
+    width: 0%; height: 3px;
+    background: #2563eb; z-index: 100;
+    transition: width 0.1s linear;
+  }
+
+  /* ── Hero ── */
+  .art-hero {
+    background: linear-gradient(135deg, #f5f9ff 0%, #eef4ff 50%, #f7fbff 100%);
+    border-bottom: 1px solid var(--gray-200);
+    padding: 2.5rem 1rem 0;
+    position: relative; overflow: hidden;
+  }
+  .art-hero::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    opacity: 0.35;
+    background-image:
+      linear-gradient(rgba(15,23,42,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15,23,42,0.04) 1px, transparent 1px);
+    background-size: 42px 42px;
+  }
+  @media (min-width: 640px)  { .art-hero { padding: 2.5rem 1.5rem 0; } }
+  @media (min-width: 1024px) { .art-hero { padding: 3rem 2rem 0; } }
+
+  .art-hero__inner { max-width: 1280px; margin: 0 auto; position: relative; z-index: 1; }
+
+  /* Breadcrumb */
+  .art-breadcrumb {
+    display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+    font-size: 0.8125rem; color: var(--gray-500); margin-bottom: 1.75rem;
+  }
+  .art-breadcrumb a { color: #2563eb; text-decoration: none; font-weight: 500; }
+  .art-breadcrumb a:hover { text-decoration: underline; }
+  .art-breadcrumb span { color: var(--gray-400); }
+
+  /* Hero content: text left, image right */
+  .art-hero__body {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 3.5rem; align-items: center;
+    padding-bottom: 3rem;
+  }
+  @media (max-width: 900px) {
+    .art-hero__body { grid-template-columns: 1fr; }
+    .art-hero__img  { order: -1; }
+  }
+
+  .art-hero__eyebrow { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .art-hero__cat {
+    display: inline-block;
+    background: var(--blue-50); color: #2563eb;
+    font-size: 0.72rem; font-weight: 700;
+    letter-spacing: 0.07em; text-transform: uppercase;
+    padding: 0.25rem 0.7rem; border-radius: 999px;
+    text-decoration: none; transition: background 0.15s;
+  }
+  .art-hero__cat:hover { background: #dbeafe; }
+  .art-hero__tag {
+    display: inline-block;
+    background: var(--gray-100); color: var(--gray-700);
+    font-size: 0.72rem; font-weight: 600;
+    padding: 0.2rem 0.6rem; border-radius: 999px;
+    text-decoration: none; transition: background 0.15s, color 0.15s;
+  }
+  .art-hero__tag:hover { background: var(--blue-50); color: #2563eb; }
+
+  .art-hero__title {
+    font-size: clamp(1.875rem, 4vw, 2.875rem);
+    font-weight: 800; color: #0f172a;
+    line-height: 1.15; margin: 0 0 1.125rem;
+    letter-spacing: -0.025em;
+  }
+  .art-hero__excerpt {
+    font-size: 1.125rem; color: #475569;
+    line-height: 1.65; margin: 0 0 1.75rem;
+  }
+  .art-hero__meta {
+    display: flex; align-items: center; gap: 0.625rem; flex-wrap: wrap;
+  }
+  .art-hero__avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 0.875rem; font-weight: 700; overflow: hidden;
+  }
+  .art-hero__avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .art-hero__author {
+    font-size: 0.9375rem; font-weight: 700; color: var(--gray-900);
+    text-decoration: none; transition: color 0.15s;
+  }
+  .art-hero__author:hover { color: #2563eb; }
+  .art-hero__sep   { color: var(--gray-300); font-size: 0.8125rem; }
+  .art-hero__date, .art-hero__read { font-size: 0.875rem; color: var(--gray-500); }
+  .art-hero__rev {
+    font-size: 0.72rem; font-weight: 600; color: var(--gray-400);
+    background: var(--gray-100); padding: 0.15rem 0.5rem; border-radius: 999px;
+  }
+
+  .art-hero__img {
+    border-radius: var(--radius); overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+    aspect-ratio: 16/10; background: var(--gray-100);
+  }
+  .art-hero__img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  /* ── 3-col article layout ── */
+  .art-layout {
+    max-width: 1280px; margin: 0 auto;
+    padding: 3rem 1rem;
+    display: grid;
+    grid-template-columns: 208px 1fr 272px;
+    gap: 3rem; align-items: start;
+  }
+  @media (max-width: 1100px) { .art-layout { grid-template-columns: 1fr 272px; } .art-toc { display: none; } }
+  @media (max-width: 768px)  { .art-layout { grid-template-columns: 1fr; } .art-right { display: none; } }
+  @media (min-width: 640px)  { .art-layout { padding: 3rem 1.5rem; } }
+  @media (min-width: 1024px) { .art-layout { padding: 3rem 2rem; } }
+
+  /* ── TOC (left col) ── */
+  .art-toc {
+    position: sticky;
+    top: calc(64px + 3rem);
+  }
+  .art-toc__progress {
+    display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;
+  }
+  .art-toc__ring {
+    width: 28px; height: 28px; transform: rotate(-90deg); flex-shrink: 0;
+  }
+  .art-toc__ring-bg   { fill: none; stroke: var(--gray-200); stroke-width: 3; }
+  .art-toc__ring-fill { fill: none; stroke: #2563eb; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 69.1; stroke-dashoffset: 69.1; transition: stroke-dashoffset 0.2s; }
+  .art-toc__pct { font-size: 0.75rem; color: var(--gray-500); }
+
+  .art-toc__label {
+    font-size: 0.7rem; font-weight: 700;
+    letter-spacing: 0.08em; text-transform: uppercase;
+    color: var(--gray-400); margin-bottom: 0.625rem;
+  }
+  .art-toc__link {
+    display: block; padding: 0.375rem 0 0.375rem 0.75rem;
+    border-left: 2px solid transparent;
+    text-decoration: none; font-size: 0.8125rem;
+    color: var(--gray-500); line-height: 1.4;
+    margin-left: -2px;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .art-toc__link:hover { color: var(--gray-900); }
+  .art-toc__link.is-active { color: #2563eb; border-left-color: #2563eb; font-weight: 600; }
+  .art-toc__link.level-3 { padding-left: 1.5rem; font-size: 0.75rem; }
+
+  /* ── Prose ── */
+  .art-prose { min-width: 0; max-width: 720px; }
+
+  .art-prose .prose {
+    font-size: 1.0625rem; line-height: 1.8; color: var(--gray-700);
+  }
+  .art-prose .prose h2 {
+    font-size: 1.625rem; font-weight: 800; color: var(--gray-900);
+    margin: 2.5rem 0 1rem; letter-spacing: -0.015em; scroll-margin-top: 80px;
+  }
+  .art-prose .prose h3 {
+    font-size: 1.25rem; font-weight: 700; color: var(--gray-900);
+    margin: 2rem 0 0.75rem; scroll-margin-top: 80px;
+  }
+  .art-prose .prose p { margin: 0 0 1.25rem; }
+  .art-prose .prose a { color: #2563eb; }
+  .art-prose .prose ul, .art-prose .prose ol { padding-left: 1.5rem; margin: 0 0 1.25rem; }
+  .art-prose .prose li { margin-bottom: 0.375rem; }
+  .art-prose .prose blockquote {
+    border-left: 4px solid #2563eb;
+    background: var(--blue-50);
+    padding: 1rem 1.25rem;
+    border-radius: 0 var(--radius) var(--radius) 0;
+    margin: 1.75rem 0; font-style: italic; color: var(--gray-700);
+  }
+  .art-prose .prose pre {
+    background: #0f172a; color: #e2e8f0;
+    padding: 1.25rem 1.5rem; border-radius: var(--radius);
+    overflow-x: auto; font-size: 0.875rem; line-height: 1.7; margin: 1.75rem 0;
+  }
+  .art-prose .prose code {
+    background: var(--gray-100); padding: 0.15em 0.4em;
+    border-radius: 4px; font-size: 0.875em; color: #be185d;
+  }
+  .art-prose .prose pre code { background: transparent; padding: 0; color: inherit; font-size: inherit; }
+  .art-prose .prose img {
+    border-radius: var(--radius); max-width: 100%; height: auto;
+    margin: 1.75rem 0; box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+  }
+  .art-prose .prose table { width: 100%; border-collapse: collapse; font-size: 0.9375rem; margin: 1.75rem 0; }
+  .art-prose .prose th {
+    background: var(--gray-50); padding: 0.6rem 1rem; text-align: left;
+    font-weight: 700; border-bottom: 2px solid var(--gray-200);
+    font-size: 0.8125rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--gray-500);
+  }
+  .art-prose .prose td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--gray-100); }
+  .art-prose .prose hr { border: none; border-top: 1px solid var(--gray-200); margin: 2.5rem 0; }
+
+  /* Article actions */
+  .art-actions {
+    display: flex; align-items: center; gap: 0.625rem;
+    margin-top: 2.5rem; padding-top: 1.5rem;
+    border-top: 1px solid var(--gray-200); flex-wrap: wrap;
+  }
+  .art-actions__label { font-size: 0.875rem; font-weight: 600; color: var(--gray-500); }
+  .art-btn {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.45rem 0.875rem; border-radius: 0.5rem;
+    font-size: 0.8125rem; font-weight: 600;
+    border: 1px solid var(--gray-200); background: var(--white);
+    color: var(--gray-700); cursor: pointer; text-decoration: none;
+    transition: background 0.15s; white-space: nowrap;
+  }
+  .art-btn:hover { background: var(--gray-50); }
+  .art-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+  /* Author card */
+  .art-author {
+    display: flex; gap: 1rem; align-items: flex-start;
+    background: var(--gray-50); border: 1px solid var(--gray-200);
+    border-radius: var(--radius); padding: 1.5rem; margin-top: 2.5rem;
+  }
+  .art-author__av {
+    width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 1rem; font-weight: 700; overflow: hidden;
+  }
+  .art-author__av img { width: 100%; height: 100%; object-fit: cover; }
+  .art-author__name {
+    font-size: 1rem; font-weight: 700; color: var(--gray-900);
+    text-decoration: none; display: block; margin-bottom: 0.25rem;
+  }
+  .art-author__name:hover { color: #2563eb; }
+  .art-author__bio { font-size: 0.9rem; color: var(--gray-500); line-height: 1.55; margin: 0; }
+
+  /* ── Right sidebar ── */
+  .art-right {
+    position: sticky; top: calc(64px + 3rem);
+    display: flex; flex-direction: column; gap: 1.25rem;
+  }
+  .art-panel {
+    background: var(--white); border: 1px solid var(--gray-200);
+    border-radius: 1rem; padding: 1.25rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .art-panel h3 {
+    font-size: 0.75rem; font-weight: 700;
+    letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--gray-400); margin: 0 0 1rem;
+  }
+
+  .related-list { display: flex; flex-direction: column; gap: 0.875rem; }
+  .related-item {
+    display: grid; grid-template-columns: 64px 1fr; gap: 0.75rem;
+    text-decoration: none; color: inherit; align-items: start;
+  }
+  .related-item:hover .related-item__title { color: #2563eb; }
+  .related-item__thumb {
+    border-radius: calc(var(--radius) - 4px); overflow: hidden;
+    aspect-ratio: 16/10; background: var(--gray-100);
+  }
+  .related-item__thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .related-item__title {
+    font-size: 0.85rem; font-weight: 700; color: var(--gray-900);
+    line-height: 1.35;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    transition: color 0.15s;
+  }
+  .related-item__read { font-size: 0.75rem; color: var(--gray-400); margin-top: 0.2rem; }
+
+  /* CTA panel */
+  .art-panel--cta {
+    background: linear-gradient(135deg, #eff6ff, #f5f3ff);
+    border-color: #ddd6fe;
+  }
+  .art-panel--cta h3 { color: #5b21b6; }
+  .art-panel--cta p { font-size: 0.875rem; color: var(--gray-700); margin: 0 0 0.75rem; line-height: 1.55; }
+  .btn-primary {
+    display: flex; align-items: center; justify-content: center; width: 100%;
+    padding: 0.5rem 1rem; background: #2563eb; color: #fff;
+    border-radius: 0.5rem; font-size: 0.875rem; font-weight: 600;
+    text-decoration: none; border: none; cursor: pointer;
+    transition: background 0.15s; margin-bottom: 0.4rem;
+  }
+  .btn-primary:hover { background: #1d4ed8; }
+  .btn-secondary {
+    display: flex; align-items: center; justify-content: center; width: 100%;
+    padding: 0.5rem 1rem; background: var(--white); color: var(--gray-700);
+    border: 1px solid var(--gray-200); border-radius: 0.5rem;
+    font-size: 0.875rem; font-weight: 600; text-decoration: none;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .btn-secondary:hover { background: var(--gray-50); }
+</style>
+
+<!-- Reading progress -->
+<div class="read-bar" id="read-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+
+<!-- Hero -->
+<header class="art-hero">
+  <div class="art-hero__inner">
+
+    <!-- Breadcrumb -->
+    <nav class="art-breadcrumb" aria-label="Breadcrumb">
+      <a href="/">Home</a>
+      <span aria-hidden="true">›</span>
+      <a href="{% url 'tutorials:index' %}">Community Tutorials</a>
+      {% if tutorial.category %}
+      <span aria-hidden="true">›</span>
+      <a href="{% url 'tutorials:index' %}?category={{ tutorial.category.slug }}">{{ tutorial.category.name }}</a>
+      {% endif %}
+      <span aria-hidden="true">›</span>
+      <span aria-current="page">{{ tutorial.title|truncatewords:7 }}</span>
+    </nav>
+
+    <div class="art-hero__body">
+      <div>
+        <div class="art-hero__eyebrow">
+          {% if tutorial.category %}
+          <a href="{% url 'tutorials:index' %}?category={{ tutorial.category.slug %}" class="art-hero__cat">
+            {{ tutorial.category.name }}
+          </a>
+          {% endif %}
+          {% for tag in tutorial.tags.all|slice:":3" %}
+          <a href="{% url 'tutorials:tag' slug=tag.slug %}" class="art-hero__tag">{{ tag.name }}</a>
+          {% endfor %}
+        </div>
+
+        <h1 class="art-hero__title">{{ tutorial.title }}</h1>
+        <p class="art-hero__excerpt">{{ tutorial.excerpt }}</p>
+
+        <div class="art-hero__meta">
+          <span class="art-hero__avatar">
+            {% if tutorial.author.profile.avatar_url %}
+            <img src="{{ tutorial.author.profile.avatar_url }}" alt="{{ tutorial.author.get_full_name }}">
+            {% else %}
+            {{ tutorial.author.first_name.0|upper }}{{ tutorial.author.last_name.0|upper }}
+            {% endif %}
+          </span>
+          <a href="{% url 'tutorials:author' public_username=tutorial.author.profile.public_username %}" class="art-hero__author">
+            {{ tutorial.author.get_full_name|default:tutorial.author.username }}
+          </a>
+          <span class="art-hero__sep">·</span>
+          <time class="art-hero__date" datetime="{{ tutorial.published_at|date:'Y-m-d' }}">
+            {{ tutorial.published_at|date:"F j, Y" }}
+          </time>
+          <span class="art-hero__sep">·</span>
+          <span class="art-hero__read">{{ tutorial.read_time_minutes }} min read</span>
+          {% if tutorial.revision_number %}
+          <span class="art-hero__rev">Rev {{ tutorial.revision_number }}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="art-hero__img">
+        <img src="{{ cover_image }}"
+             alt="{{ tutorial.cover_image_alt|default:tutorial.title }}"
+             loading="eager" width="840" height="525">
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Article layout -->
+<div class="art-layout">
+
+  <!-- TOC -->
+  <aside class="art-toc" aria-label="Table of contents">
+    {% if toc %}
+    <div class="art-toc__progress">
+      <svg class="art-toc__ring" viewBox="0 0 24 24" aria-hidden="true">
+        <circle class="art-toc__ring-bg"   cx="12" cy="12" r="11"/>
+        <circle class="art-toc__ring-fill" id="toc-ring" cx="12" cy="12" r="11"/>
+      </svg>
+      <span class="art-toc__pct" id="toc-pct">0% read</span>
+    </div>
+    <p class="art-toc__label">On this page</p>
+    <nav aria-label="Article sections">
+      {% for item in toc %}
+      <a href="#{{ item.id }}"
+         class="art-toc__link level-{{ item.level }}"
+         data-toc="{{ item.id }}">{{ item.title }}</a>
+      {% endfor %}
+    </nav>
+    {% endif %}
+  </aside>
+
+  <!-- Prose -->
+  <article class="art-prose" id="article-main"
+           itemscope itemtype="https://schema.org/BlogPosting">
+    <meta itemprop="headline"      content="{{ tutorial.title }}">
+    <meta itemprop="datePublished" content="{{ tutorial.published_at|date:'Y-m-d' }}">
+    <meta itemprop="dateModified"  content="{{ tutorial.last_revised_at|default:tutorial.updated_at|date:'Y-m-d' }}">
+
+    <div class="prose" id="tutorial-content" itemprop="articleBody">
+      {{ article_html|safe }}
+    </div>
+
+    <!-- Share actions -->
+    <div class="art-actions">
+      <span class="art-actions__label">Share:</span>
+      <a href="https://twitter.com/intent/tweet?url={{ canonical_url|urlencode }}&text={{ tutorial.title|urlencode }}"
+         target="_blank" rel="noopener noreferrer" class="art-btn" aria-label="Share on X">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.736l7.737-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+        </svg>
+        X
+      </a>
+      <a href="https://www.linkedin.com/sharing/share-offsite/?url={{ canonical_url|urlencode }}"
+         target="_blank" rel="noopener noreferrer" class="art-btn" aria-label="Share on LinkedIn">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+        </svg>
+        LinkedIn
+      </a>
+      <button class="art-btn" aria-label="Copy link"
+              onclick="navigator.clipboard.writeText('{{ canonical_url }}').then(()=>{this.textContent='✓ Copied!';setTimeout(()=>this.textContent='Copy link',2000)})">
+        Copy link
+      </button>
+    </div>
+
+    <!-- Author bio -->
+    <div class="art-author">
+      <span class="art-author__av">
+        {% if tutorial.author.profile.avatar_url %}
+        <img src="{{ tutorial.author.profile.avatar_url }}" alt="{{ tutorial.author.get_full_name }}">
+        {% else %}
+        {{ tutorial.author.first_name.0|upper }}{{ tutorial.author.last_name.0|upper }}
+        {% endif %}
+      </span>
+      <div>
+        <a href="{% url 'tutorials:author' public_username=tutorial.author.profile.public_username %}"
+           class="art-author__name">
+          {{ tutorial.author.get_full_name|default:tutorial.author.username }}
+        </a>
+        {% if tutorial.author.profile.bio %}
+        <p class="art-author__bio">{{ tutorial.author.profile.bio }}</p>
+        {% endif %}
+      </div>
+    </div>
+  </article>
+
+  <!-- Right sidebar -->
+  <aside class="art-right" aria-label="Related content">
+
+    {% if related_tutorials %}
+    <div class="art-panel">
+      <h3>More to read</h3>
+      <div class="related-list">
+        {% for related in related_tutorials %}
+        <a href="{{ related.get_absolute_url }}" class="related-item">
+          <div class="related-item__thumb">
+            <img src="{{ related.thumbnail_storage_url|default:related.cover_storage_url|default:related.cover_image_url|default:fallback_image }}"
+                 alt="{{ related.cover_image_alt|default:related.title }}"
+                 loading="lazy" width="128" height="80">
+          </div>
+          <div>
+            <p class="related-item__title">{{ related.title }}</p>
+            <p class="related-item__read">{{ related.read_time_minutes }} min read</p>
+          </div>
+        </a>
+        {% empty %}
+        <p style="font-size:0.875rem;color:var(--gray-500);">More tutorials coming soon.</p>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="art-panel art-panel--cta">
+      <h3>Share Your Work</h3>
+      <p>Contribute to the ecosystem for free and help the community build faster.</p>
+      <a href="/models"   class="btn-primary">Share a model</a>
+      <a href="/datasets" class="btn-secondary">Share a dataset</a>
+    </div>
+
+    <p style="text-align:center;font-size:0.8rem;color:#9ca3af;">
+      <a href="{% url 'tutorials:feed' %}" style="color:#9ca3af;text-decoration:none;">⚡ Subscribe via RSS</a>
+    </p>
+  </aside>
+</div>
+
+<script>
+(function () {
+  /* Progress bar + TOC ring */
+  var bar  = document.getElementById('read-bar');
+  var ring = document.getElementById('toc-ring');
+  var pct  = document.getElementById('toc-pct');
+  var C    = 2 * Math.PI * 11;
+
+  function update() {
+    var top = window.scrollY;
+    var h   = document.documentElement.scrollHeight - window.innerHeight;
+    var p   = h > 0 ? Math.min(100, Math.round(top / h * 100)) : 0;
+    if (bar)  { bar.style.width = p + '%'; bar.setAttribute('aria-valuenow', p); }
+    if (ring) { ring.style.strokeDashoffset = C - (C * p / 100); }
+    if (pct)  { pct.textContent = p + '% read'; }
+  }
+  window.addEventListener('scroll', update, { passive: true });
+  update();
+
+  /* Fallback images */
+  var fallback = {{ fallback_image|to_json|safe }};
+  document.querySelectorAll('#tutorial-content img, .related-item__thumb img, .art-hero__img img').forEach(function (img) {
+    img.addEventListener('error', function () {
+      if (img.dataset.fb) return;
+      img.dataset.fb = '1'; img.src = fallback;
+    });
+  });
+
+  /* TOC active on scroll */
+  var links    = Array.from(document.querySelectorAll('[data-toc]'));
+  var sections = links.map(function (l) { return document.getElementById(l.dataset.toc); }).filter(Boolean);
+  if (!sections.length) return;
+  var obs = new IntersectionObserver(function (entries) {
+    var hit = entries.filter(function (e) { return e.isIntersecting; })
+                     .sort(function (a, b) { return b.intersectionRatio - a.intersectionRatio; })[0];
+    if (!hit) return;
+    links.forEach(function (l) { l.classList.toggle('is-active', l.dataset.toc === hit.target.id); });
+  }, { rootMargin: '-20% 0px -55% 0px', threshold: [0.1, 0.35, 0.6] });
+  sections.forEach(function (s) { obs.observe(s); });
+}());
+</script>
+{% endblock %}

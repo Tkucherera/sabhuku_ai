@@ -1,83 +1,621 @@
 {% extends "tutorials/base.html" %}
+{% load static tutorial_extras %}
+
 {% block title %}Community Tutorials | Sabhuku AI{% endblock %}
+
 {% block content %}
-<main>
-  <section class="hero-band">
-    <div class="shell hero-grid">
-      <div>
-        <span class="eyebrow">SEO-first knowledge hub</span>
-        <h1>Community Tutorials</h1>
-        <p class="hero-copy">Practical AI guides, architecture walkthroughs, and implementation notes designed to help teams trust Sabhuku AI as a serious solution partner.</p>
-      </div>
-      <div class="hero-card">
-        <p class="hero-stat">SEO</p>
-        <p class="hero-stat-label">Crawlable articles with structured metadata, related content, tag archives, and feed support.</p>
-      </div>
+<style>
+  :root {
+    --blue-600: #2563eb;
+    --blue-50:  #eff6ff;
+    --gray-900: #111827;
+    --gray-700: #374151;
+    --gray-600: #4b5563;
+    --gray-500: #6b7280;
+    --gray-400: #9ca3af;
+    --gray-200: #e5e7eb;
+    --gray-100: #f3f4f6;
+    --gray-50:  #f9fafb;
+    --white:    #ffffff;
+    --radius:   0.75rem;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.12);
+  }
+
+  /* ── Hero (matches LandingPage hero gradient style) ── */
+  .tut-hero {
+    background: linear-gradient(135deg, #f5f9ff 0%, #eef4ff 50%, #f7fbff 100%);
+    border-bottom: 1px solid var(--gray-200);
+    padding: 3.5rem 1rem 3rem;
+    position: relative;
+    overflow: hidden;
+  }
+  /* subtle grid overlay like LandingPage */
+  .tut-hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    opacity: 0.4;
+    background-image:
+      linear-gradient(rgba(15,23,42,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(15,23,42,0.04) 1px, transparent 1px);
+    background-size: 42px 42px;
+    pointer-events: none;
+  }
+  @media (min-width: 640px)  { .tut-hero { padding: 3.5rem 1.5rem 3rem; } }
+  @media (min-width: 1024px) { .tut-hero { padding: 4rem 2rem 3.5rem; } }
+
+  .tut-hero__inner {
+    max-width: 1280px; margin: 0 auto;
+    position: relative; z-index: 1;
+    display: flex; flex-wrap: wrap;
+    align-items: flex-end; justify-content: space-between;
+    gap: 2rem;
+  }
+
+  /* inline-flex badge — like LandingPage hero badge */
+  .tut-hero__badge {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    background: rgba(255,255,255,0.8);
+    color: #1e40af;
+    padding: 0.4rem 1rem;
+    border-radius: 999px;
+    font-size: 0.8125rem; font-weight: 600;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border: 1px solid #bfdbfe;
+    margin-bottom: 0.875rem;
+  }
+  .tut-hero__badge svg { width: 14px; height: 14px; }
+
+  .tut-hero__title {
+    font-size: clamp(1.875rem, 4vw, 2.75rem);
+    font-weight: 800;
+    color: #0f172a; /* slate-950 like LandingPage h1 */
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+    margin: 0 0 0.625rem;
+  }
+  .tut-hero__title span { color: var(--blue-600); }
+  .tut-hero__sub {
+    font-size: 1.0625rem;
+    color: #475569; /* slate-600 */
+    max-width: 48ch; margin: 0;
+    line-height: 1.65;
+  }
+
+  .tut-hero__stats {
+    display: flex; gap: 2rem; flex-shrink: 0;
+  }
+  .tut-hero__stat-value {
+    display: block;
+    font-size: 2rem; font-weight: 800;
+    color: var(--gray-900); line-height: 1;
+  }
+  .tut-hero__stat-label { font-size: 0.8125rem; color: var(--gray-500); }
+
+  /* ── Category filter bar ── */
+  .tut-filters {
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-200);
+    position: sticky; top: 64px; z-index: 40;
+  }
+  .tut-filters__inner {
+    max-width: 1280px; margin: 0 auto;
+    padding: 0 1rem;
+    display: flex; overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tut-filters__inner::-webkit-scrollbar { display: none; }
+  @media (min-width: 640px)  { .tut-filters__inner { padding: 0 1.5rem; } }
+  @media (min-width: 1024px) { .tut-filters__inner { padding: 0 2rem; } }
+
+  .tut-filter {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    padding: 0.875rem 1rem;
+    border-bottom: 2px solid transparent;
+    text-decoration: none; font-size: 0.9rem; font-weight: 600;
+    color: var(--gray-500); white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .tut-filter:hover { color: var(--gray-900); }
+  .tut-filter.is-active { color: var(--blue-600); border-bottom-color: var(--blue-600); }
+  .tut-filter__count {
+    background: var(--gray-100); color: var(--gray-500);
+    font-size: 0.7rem; font-weight: 700;
+    padding: 0.1rem 0.45rem; border-radius: 999px;
+  }
+  .tut-filter.is-active .tut-filter__count { background: var(--blue-50); color: var(--blue-600); }
+
+  /* ── Page layout ── */
+  .tut-layout {
+    max-width: 1280px; margin: 0 auto;
+    padding: 2.5rem 1rem;
+    display: grid;
+    grid-template-columns: 1fr 296px;
+    gap: 3rem; align-items: start;
+  }
+  @media (max-width: 1023px) { .tut-layout { grid-template-columns: 1fr; } }
+  @media (min-width: 640px)  { .tut-layout { padding: 2.5rem 1.5rem; } }
+  @media (min-width: 1024px) { .tut-layout { padding: 2.5rem 2rem; } }
+
+  /* ── Featured post card ── */
+  .tut-featured { margin-bottom: 2.5rem; }
+  .tut-featured__card {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid var(--gray-200);
+    background: var(--white);
+    box-shadow: var(--shadow-sm);
+    text-decoration: none; color: inherit;
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  .tut-featured__card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+  @media (max-width: 640px) { .tut-featured__card { grid-template-columns: 1fr; } }
+
+  .tut-featured__img {
+    position: relative; overflow: hidden; min-height: 280px;
+    background: var(--gray-100);
+  }
+  .tut-featured__img img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+    transition: transform 0.4s ease;
+  }
+  .tut-featured__card:hover .tut-featured__img img { transform: scale(1.03); }
+  .tut-featured__badge {
+    position: absolute; top: 1rem; left: 1rem;
+    background: var(--blue-600); color: #fff;
+    font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    padding: 0.25rem 0.7rem; border-radius: 999px;
+  }
+
+  .tut-featured__body {
+    padding: 2rem 2rem 2rem;
+    display: flex; flex-direction: column; gap: 0.875rem;
+    justify-content: center;
+  }
+  .tut-featured__cat {
+    font-size: 0.72rem; font-weight: 700;
+    letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--blue-600);
+  }
+  .tut-featured__title {
+    font-size: clamp(1.25rem, 2.2vw, 1.625rem);
+    font-weight: 800; color: var(--gray-900);
+    line-height: 1.25; margin: 0;
+    letter-spacing: -0.015em;
+  }
+  .tut-featured__excerpt {
+    font-size: 0.9375rem; color: var(--gray-500);
+    line-height: 1.65; margin: 0;
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .tut-featured__meta {
+    display: flex; align-items: center; gap: 0.625rem;
+    flex-wrap: wrap; padding-top: 0.375rem;
+  }
+  .tut-featured__avatar {
+    width: 30px; height: 30px; border-radius: 50%; object-fit: cover;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    flex-shrink: 0; display: flex; align-items: center;
+    justify-content: center; color: #fff; font-size: 0.7rem; font-weight: 700;
+    overflow: hidden;
+  }
+  .tut-featured__avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .tut-featured__author { font-size: 0.875rem; font-weight: 700; color: var(--gray-700); }
+  .tut-featured__sep    { color: var(--gray-300); font-size: 0.75rem; }
+  .tut-featured__date, .tut-featured__read { font-size: 0.8125rem; color: var(--gray-500); }
+  .tut-featured__tags { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+
+  /* ── Section header ── */
+  .tut-section-hd {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.25rem;
+  }
+  .tut-section-hd h2 { font-size: 1.125rem; font-weight: 800; color: var(--gray-900); margin: 0; }
+  .tut-section-hd a { font-size: 0.875rem; font-weight: 600; color: var(--blue-600); text-decoration: none; }
+  .tut-section-hd a:hover { text-decoration: underline; }
+
+  /* ── Card grid ── */
+  .tut-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(272px, 1fr));
+    gap: 1.25rem;
+  }
+  /* matches LandingPage service cards: bg-white p-6 rounded-xl border hover:shadow-lg */
+  .tut-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: 0.75rem;
+    overflow: hidden;
+    text-decoration: none; color: inherit;
+    display: flex; flex-direction: column;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  .tut-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-3px); }
+
+  .tut-card__img {
+    aspect-ratio: 16/9; overflow: hidden; background: var(--gray-100);
+  }
+  .tut-card__img img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+    transition: transform 0.35s ease;
+  }
+  .tut-card:hover .tut-card__img img { transform: scale(1.04); }
+
+  .tut-card__body {
+    padding: 1.125rem 1.25rem 1.25rem;
+    display: flex; flex-direction: column; gap: 0.5rem; flex: 1;
+  }
+  .tut-card__cat {
+    font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 0.07em; text-transform: uppercase; color: var(--blue-600);
+  }
+  .tut-card__title {
+    font-size: 1rem; font-weight: 700; color: var(--gray-900);
+    line-height: 1.4; margin: 0;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .tut-card__excerpt {
+    font-size: 0.875rem; color: var(--gray-500); line-height: 1.55; flex: 1;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .tut-card__footer {
+    display: flex; align-items: center; gap: 0.45rem;
+    margin-top: auto; padding-top: 0.625rem;
+    border-top: 1px solid var(--gray-100);
+  }
+  .tut-card__avatar {
+    width: 22px; height: 22px; border-radius: 50%; object-fit: cover;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    flex-shrink: 0; display: flex; align-items: center;
+    justify-content: center; color: #fff; font-size: 0.6rem; font-weight: 700;
+    overflow: hidden;
+  }
+  .tut-card__avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .tut-card__author { font-size: 0.8rem; font-weight: 700; color: var(--gray-700); }
+  .tut-card__sep    { font-size: 0.7rem; color: var(--gray-300); }
+  .tut-card__date   { font-size: 0.75rem; color: var(--gray-500); }
+  .tut-card__read   { font-size: 0.75rem; color: var(--gray-500); margin-left: auto; }
+
+  /* ── Chip/tag ── */
+  .chip {
+    display: inline-block; padding: 0.2rem 0.6rem;
+    border-radius: 999px; font-size: 0.7rem; font-weight: 600;
+    background: var(--gray-100); color: var(--gray-700);
+    text-decoration: none; white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+  }
+  a.chip:hover { background: var(--blue-50); color: var(--blue-600); }
+
+  /* ── Sidebar ── */
+  .tut-sidebar {
+    position: sticky;
+    top: calc(64px + 49px + 2.5rem); /* nav + filterbar + padding */
+    display: flex; flex-direction: column; gap: 1.25rem;
+  }
+  @media (max-width: 1023px) { .tut-sidebar { display: none; } }
+
+  /* matches LandingPage about/service cards: rounded-2xl border bg-slate-50 */
+  .tut-sidebar__panel {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: 1rem; padding: 1.25rem;
+    box-shadow: var(--shadow-sm);
+  }
+  .tut-sidebar__panel h3 {
+    font-size: 0.75rem; font-weight: 700;
+    letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--gray-400); margin: 0 0 1rem;
+  }
+  .tut-sidebar__tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+  .tut-sidebar__authors { display: flex; flex-direction: column; gap: 0.75rem; }
+  .tut-sidebar__author {
+    display: flex; align-items: center; gap: 0.625rem;
+    text-decoration: none; color: inherit;
+  }
+  .tut-sidebar__author:hover .tut-sidebar__author-name { color: var(--blue-600); }
+  .tut-sidebar__author-av {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    flex-shrink: 0; display: flex; align-items: center;
+    justify-content: center; color: #fff;
+    font-size: 0.75rem; font-weight: 700; overflow: hidden;
+  }
+  .tut-sidebar__author-av img { width: 100%; height: 100%; object-fit: cover; }
+  .tut-sidebar__author-name  { font-size: 0.875rem; font-weight: 700; color: var(--gray-900); }
+  .tut-sidebar__author-count { font-size: 0.75rem; color: var(--gray-500); }
+
+  /* CTA panel — matches LandingPage support card bg-white/5 style but light */
+  .tut-sidebar__cta {
+    background: linear-gradient(135deg, #eff6ff, #f5f3ff);
+    border-color: #ddd6fe;
+  }
+  .tut-sidebar__cta h3 { color: #5b21b6; }
+  .tut-sidebar__cta p  { font-size: 0.875rem; color: var(--gray-700); margin: 0 0 0.875rem; line-height: 1.55; }
+
+  /* matches LandingPage CTAs */
+  .btn-primary {
+    display: flex; align-items: center; justify-content: center;
+    padding: 0.5rem 1rem;
+    background: #2563eb; color: #fff;
+    border-radius: 0.5rem; font-size: 0.875rem; font-weight: 600;
+    text-decoration: none; border: none; cursor: pointer;
+    transition: background 0.15s; margin-bottom: 0.4rem; width: 100%;
+  }
+  .btn-primary:hover { background: #1d4ed8; }
+  .btn-secondary {
+    display: flex; align-items: center; justify-content: center;
+    padding: 0.5rem 1rem;
+    background: var(--white); color: var(--gray-700);
+    border: 1px solid var(--gray-200);
+    border-radius: 0.5rem; font-size: 0.875rem; font-weight: 600;
+    text-decoration: none; cursor: pointer;
+    transition: background 0.15s; width: 100%;
+  }
+  .btn-secondary:hover { background: var(--gray-50); }
+
+  /* ── Pagination ── */
+  .tut-pagination {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0.375rem; margin-top: 2.5rem; flex-wrap: wrap;
+  }
+  .tut-pagination a, .tut-pagination span {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 36px; height: 36px; padding: 0 0.5rem;
+    border-radius: 0.5rem; font-size: 0.875rem; font-weight: 600;
+    text-decoration: none; border: 1px solid var(--gray-200);
+    color: var(--gray-700); background: var(--white);
+    transition: background 0.15s, color 0.15s;
+  }
+  .tut-pagination a:hover { background: var(--gray-100); }
+  .tut-pagination .is-current { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .tut-pagination .is-disabled { opacity: 0.35; pointer-events: none; }
+
+  /* ── Empty state ── */
+  .tut-empty {
+    text-align: center; padding: 5rem 1.5rem; color: var(--gray-500);
+  }
+  .tut-empty svg { width: 48px; height: 48px; margin: 0 auto 1rem; display: block; color: var(--gray-200); }
+  .tut-empty h3 { font-size: 1.125rem; color: var(--gray-700); margin: 0 0 0.5rem; }
+</style>
+
+<!-- Hero -->
+<section class="tut-hero" aria-label="Community tutorials hero">
+  <div class="tut-hero__inner">
+    <div>
+      <p class="tut-hero__badge">
+        <!-- BookOpen -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+        </svg>
+        Community Tutorials
+      </p>
+      <h1 class="tut-hero__title">
+        Learn, build, and share
+        <span> AI knowledge</span><br>with the community.
+      </h1>
+      <p class="tut-hero__sub">
+        Practical guides on ML models, datasets, and AI workflows — written by builders across Zimbabwe and the SADC region.
+      </p>
     </div>
-  </section>
-  <section class="shell article-grid-section">
-    {% if featured_tutorial %}
-    <article class="featured-card">
-      <a href="{{ featured_tutorial.absolute_url }}" class="featured-media">
-        <img src="{{ featured_tutorial.cover_storage_url|default:featured_tutorial.cover_image_url|default:'' }}" alt="{{ featured_tutorial.cover_image_alt|default:featured_tutorial.title }}" loading="eager">
-      </a>
-      <div class="featured-content">
-        <p class="meta-row">Featured tutorial</p>
-        <h2><a href="{{ featured_tutorial.absolute_url }}">{{ featured_tutorial.title }}</a></h2>
-        <p>{{ featured_tutorial.excerpt }}</p>
-        <div class="article-meta">
-          <span>{{ featured_tutorial.read_time_minutes }} min read</span>
-          <span>Rev {{ featured_tutorial.revision_number }}</span>
-          <span>{{ featured_tutorial.published_at|date:"M j, Y" }}</span>
-        </div>
+    {% if total_count %}
+    <div class="tut-hero__stats">
+      <div>
+        <span class="tut-hero__stat-value">{{ total_count }}</span>
+        <span class="tut-hero__stat-label">Tutorials</span>
       </div>
-    </article>
+      {% if author_count %}
+      <div>
+        <span class="tut-hero__stat-value">{{ author_count }}</span>
+        <span class="tut-hero__stat-label">Authors</span>
+      </div>
+      {% endif %}
+    </div>
     {% endif %}
-    <div class="content-with-sidebar">
-      <section class="tutorial-card-list">
-        {% for tutorial in tutorials %}
-        <article class="tutorial-card">
-          <a href="{{ tutorial.absolute_url }}" class="card-image">
-            <img src="{{ tutorial.thumbnail_storage_url|default:tutorial.cover_storage_url|default:tutorial.cover_image_url|default:'' }}" alt="{{ tutorial.cover_image_alt|default:tutorial.title }}" loading="lazy">
-          </a>
-          <div class="card-copy">
-            <p class="meta-row">{{ tutorial.published_at|date:"M j, Y" }} • {{ tutorial.read_time_minutes }} min read</p>
-            <h2><a href="{{ tutorial.absolute_url }}">{{ tutorial.title }}</a></h2>
-            <p>{{ tutorial.excerpt }}</p>
-            <div class="chip-row">
-              {% for tag in tutorial.public_tags|slice:":4" %}
-              <span class="chip">{{ tag }}</span>
-              {% endfor %}
-            </div>
+  </div>
+</section>
+
+<!-- Category filter tabs -->
+<nav class="tut-filters" aria-label="Category filters">
+  <div class="tut-filters__inner">
+    <a href="{% url 'tutorials:index' %}"
+       class="tut-filter {% if not active_category %}is-active{% endif %}">
+      All {% if total_count %}<span class="tut-filter__count">{{ total_count }}</span>{% endif %}
+    </a>
+    {% for cat in categories %}
+    <a href="{% url 'tutorials:index' %}?category={{ cat.slug }}"
+       class="tut-filter {% if active_category == cat.slug %}is-active{% endif %}">
+      {{ cat.name }}
+      {% if cat.post_count %}<span class="tut-filter__count">{{ cat.post_count }}</span>{% endif %}
+    </a>
+    {% endfor %}
+  </div>
+</nav>
+
+<!-- Content grid -->
+<div class="tut-layout">
+  <div>
+
+    <!-- Featured -->
+    {% if featured_post %}
+    <section class="tut-featured" aria-label="Featured tutorial">
+      <a href="{{ featured_post.get_absolute_url }}" class="tut-featured__card">
+        <div class="tut-featured__img">
+          <img src="{{ featured_post.cover_image.url|default:fallback_image }}"
+               alt="{{ featured_post.cover_image_alt|default:featured_post.title }}"
+               loading="eager" width="600" height="400">
+          <span class="tut-featured__badge">Featured</span>
+        </div>
+        <div class="tut-featured__body">
+          {% if featured_post.category %}
+          <p class="tut-featured__cat">{{ featured_post.category.name }}</p>
+          {% endif %}
+          <h2 class="tut-featured__title">{{ featured_post.title }}</h2>
+          <p class="tut-featured__excerpt">{{ featured_post.excerpt }}</p>
+          <div class="tut-featured__meta">
+            <span class="tut-featured__avatar">
+              {% if featured_post.author.profile.avatar_url %}
+              <img src="{{ featured_post.author.profile.avatar_url }}" alt="">
+              {% else %}
+              {{ featured_post.author.first_name.0|upper }}{{ featured_post.author.last_name.0|upper }}
+              {% endif %}
+            </span>
+            <span class="tut-featured__author">{{ featured_post.author.get_full_name|default:featured_post.author.username }}</span>
+            <span class="tut-featured__sep">·</span>
+            <time class="tut-featured__date" datetime="{{ featured_post.published_at|date:'Y-m-d' }}">
+              {{ featured_post.published_at|date:"M j, Y" }}
+            </time>
+            <span class="tut-featured__sep">·</span>
+            <span class="tut-featured__read">{{ featured_post.read_time_minutes }} min read</span>
           </div>
-        </article>
-        {% empty %}
-        <article class="empty-state">
-          <h2>No tutorials are live yet</h2>
-          <p>Publish the first article to activate the SEO hub.</p>
-        </article>
-        {% endfor %}
-      </section>
-      <aside class="right-column">
-        <section class="sidebar-panel">
-          <h2>Popular tags</h2>
-          <div class="chip-row">
-            {% for tag in popular_tags %}
-            <a href="{% url 'tutorials:tag' slug=tag.slug %}" class="chip chip-link">{{ tag.name }}</a>
+          {% if featured_post.tags.all %}
+          <div class="tut-featured__tags">
+            {% for tag in featured_post.tags.all|slice:":4" %}
+            <span class="chip">{{ tag.name }}</span>
             {% endfor %}
           </div>
-        </section>
-        <section class="sidebar-panel cta-panel">
-          <h2>Share with the community</h2>
-          <p>Contribute models or datasets for free and help more builders ship useful AI systems.</p>
-          <div class="cta-actions">
-            <a href="/models" class="button-primary">Share a model</a>
-            <a href="/datasets" class="button-secondary">Share a dataset</a>
-          </div>
-        </section>
-      </aside>
-    </div>
-  </section>
-</main>
-{% endblock %}
+          {% endif %}
+        </div>
+      </a>
+    </section>
+    {% endif %}
 
+    <!-- Latest grid -->
+    {% if posts %}
+    <section aria-label="Latest tutorials">
+      <div class="tut-section-hd">
+        <h2>Latest tutorials</h2>
+        {% if page_obj.has_next %}<a href="?page={{ page_obj.next_page_number }}">See more →</a>{% endif %}
+      </div>
+
+      <div class="tut-grid" role="list">
+        {% for post in posts %}
+        <article role="listitem">
+          <a href="{{ post.get_absolute_url }}" class="tut-card">
+            <div class="tut-card__img">
+              <img src="{{ post.cover_image.url|default:fallback_image }}"
+                   alt="{{ post.cover_image_alt|default:post.title }}"
+                   loading="lazy" width="400" height="225">
+            </div>
+            <div class="tut-card__body">
+              {% if post.category %}<p class="tut-card__cat">{{ post.category.name }}</p>{% endif %}
+              <h3 class="tut-card__title">{{ post.title }}</h3>
+              <p class="tut-card__excerpt">{{ post.excerpt }}</p>
+              <div class="tut-card__footer">
+                <span class="tut-card__avatar">
+                  {% if post.author.profile.avatar_url %}
+                  <img src="{{ post.author.profile.avatar_url }}" alt="">
+                  {% else %}
+                  {{ post.author.first_name.0|upper }}{{ post.author.last_name.0|upper }}
+                  {% endif %}
+                </span>
+                <span class="tut-card__author">{{ post.author.get_full_name|default:post.author.username }}</span>
+                <span class="tut-card__sep">·</span>
+                <time class="tut-card__date" datetime="{{ post.published_at|date:'Y-m-d' }}">{{ post.published_at|date:"M j" }}</time>
+                <span class="tut-card__read">{{ post.read_time_minutes }} min</span>
+              </div>
+            </div>
+          </a>
+        </article>
+        {% endfor %}
+      </div>
+
+      <!-- Pagination -->
+      {% if page_obj.paginator.num_pages > 1 %}
+      <nav class="tut-pagination" aria-label="Pagination">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">←</a>
+        {% else %}<span class="is-disabled" aria-hidden="true">←</span>{% endif %}
+
+        {% for num in page_obj.paginator.page_range %}
+          {% if num == page_obj.number %}
+            <span class="is-current" aria-current="page">{{ num }}</span>
+          {% elif num == 1 or num == page_obj.paginator.num_pages %}
+            <a href="?page={{ num }}">{{ num }}</a>
+          {% elif num|add:"-2" <= page_obj.number and page_obj.number <= num|add:"2" %}
+            <a href="?page={{ num }}">{{ num }}</a>
+          {% elif num == page_obj.number|add:"-3" or num == page_obj.number|add:"3" %}
+            <span>…</span>
+          {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" aria-label="Next">→</a>
+        {% else %}<span class="is-disabled" aria-hidden="true">→</span>{% endif %}
+      </nav>
+      {% endif %}
+    </section>
+
+    {% else %}
+    <div class="tut-empty">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+        <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+      </svg>
+      <h3>No tutorials yet</h3>
+      <p>Check back soon — the community is building!</p>
+    </div>
+    {% endif %}
+
+  </div><!-- /main col -->
+
+  <!-- Sidebar -->
+  <aside class="tut-sidebar" aria-label="Sidebar">
+
+    {% if popular_tags %}
+    <div class="tut-sidebar__panel">
+      <h3>Popular Topics</h3>
+      <div class="tut-sidebar__tags">
+        {% for tag in popular_tags %}
+        <a href="{% url 'tutorials:tag' slug=tag.slug %}" class="chip">{{ tag.name }}</a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if top_authors %}
+    <div class="tut-sidebar__panel">
+      <h3>Top Authors</h3>
+      <div class="tut-sidebar__authors">
+        {% for author in top_authors %}
+        <a href="{% url 'tutorials:author' public_username=author.profile.public_username %}" class="tut-sidebar__author">
+          <span class="tut-sidebar__author-av">
+            {% if author.profile.avatar_url %}
+            <img src="{{ author.profile.avatar_url }}" alt="{{ author.get_full_name }}">
+            {% else %}
+            {{ author.first_name.0|upper }}{{ author.last_name.0|upper }}
+            {% endif %}
+          </span>
+          <div>
+            <div class="tut-sidebar__author-name">{{ author.get_full_name|default:author.username }}</div>
+            <div class="tut-sidebar__author-count">{{ author.post_count }} tutorial{{ author.post_count|pluralize }}</div>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- CTA — mirrors LandingPage support card -->
+    <div class="tut-sidebar__panel tut-sidebar__cta">
+      <h3>Share Your Work</h3>
+      <p>Contribute to the ecosystem for free and help the community build faster.</p>
+      <a href="/models"   class="btn-primary">Share a model</a>
+      <a href="/datasets" class="btn-secondary">Share a dataset</a>
+    </div>
+
+    <p style="text-align:center;font-size:0.8rem;color:#9ca3af;">
+      <a href="{% url 'tutorials:feed' %}" style="color:#9ca3af;text-decoration:none;">⚡ Subscribe via RSS</a>
+    </p>
+
+  </aside>
+</div>
+{% endblock %}

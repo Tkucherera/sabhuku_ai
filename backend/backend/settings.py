@@ -72,6 +72,9 @@ INSTALLED_APPS = [
     # dj - rest auth 
     'dj_rest_auth',
     'dj_rest_auth.registration',
+
+    # google bucket 
+    'storages',
 ]
 
 if UNFOLD_INSTALLED:
@@ -340,7 +343,9 @@ GS_UPLOAD_URL_EXPIRATION_MINUTES = int(os.getenv("GS_UPLOAD_URL_EXPIRATION_MINUT
 GS_DOWNLOAD_URL_EXPIRATION_HOURS = int(os.getenv("GS_DOWNLOAD_URL_EXPIRATION_HOURS", "1"))
 PUBLIC_SITE_URL = os.getenv("PUBLIC_SITE_URL", "")
 
-
+GS_MEDIA_BUCKET_NAME = os.getenv("GS_MEDIA_BUCKET_NAME", "sabhuku-media")
+MEDIA_URL = f'https://storage.googleapis.com/{GS_MEDIA_BUCKET_NAME}/'
+DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 LOG_DB_LEVEL = os.getenv("LOG_DB_LEVEL", "WARNING")

@@ -7,34 +7,335 @@
   <title>{% block title %}{{ page_title }} | Sabhuku AI{% endblock %}</title>
   <meta name="description" content="{{ meta_description }}">
   <link rel="canonical" href="{{ canonical_url }}">
+
+  <!-- Open Graph -->
   <meta property="og:type" content="article">
   <meta property="og:site_name" content="Sabhuku AI">
   <meta property="og:title" content="{{ page_title }}">
   <meta property="og:description" content="{{ meta_description }}">
   <meta property="og:url" content="{{ canonical_url }}">
   {% block social_image %}<meta property="og:image" content="{% tutorial_fallback_image %}">{% endblock %}
+
+  <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="{{ page_title }}">
   <meta name="twitter:description" content="{{ meta_description }}">
+
   {% block structured_data %}{% endblock %}
+
   <link rel="alternate" type="application/rss+xml" title="Sabhuku AI Community Tutorials" href="{% url 'tutorials:feed' %}">
   <link rel="stylesheet" href="{% static 'tutorials/css/community-tutorials.css' %}">
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #111827;
+      background: #fff;
+    }
+
+    /* ═══════════════════════════════════════
+       NAV  —  1:1 port of LandingPage <nav>
+       border-b bg-white/80 backdrop-blur-sm
+       fixed top-0 left-0 right-0 z-50
+    ═══════════════════════════════════════ */
+    .sab-nav {
+      border-bottom: 1px solid #e5e7eb;
+      background: rgba(255,255,255,0.8);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 50;
+    }
+    .sab-nav__inner {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 0 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 64px;
+    }
+    @media (min-width: 640px)  { .sab-nav__inner { padding: 0 1.5rem; } }
+    @media (min-width: 1024px) { .sab-nav__inner { padding: 0 2rem; } }
+
+    /* Brand: flex items-center gap-2 */
+    .sab-nav__brand {
+      display: flex; align-items: center; gap: 0.5rem;
+      text-decoration: none; color: inherit;
+    }
+    .sab-nav__brain {
+      /* Brain w-8 h-8 text-blue-600 */
+      width: 32px; height: 32px; color: #2563eb; flex-shrink: 0;
+    }
+    .sab-nav__brain svg { width: 100%; height: 100%; }
+    .sab-nav__brand-name {
+      font-size: 1.25rem; font-weight: 700; color: #111827;
+    }
+
+    /* Centre links: hidden md:flex items-center gap-8 */
+    .sab-nav__links {
+      display: none; list-style: none; margin: 0; padding: 0;
+      align-items: center; gap: 2rem;
+    }
+    @media (min-width: 768px) { .sab-nav__links { display: flex; } }
+
+    /* text-gray-800 font-semibold hover:text-blue-600 */
+    .sab-nav__link {
+      font-size: 0.9375rem; font-weight: 600;
+      color: #1f2937; text-decoration: none;
+      transition: color 0.15s;
+      white-space: nowrap;
+    }
+    .sab-nav__link:hover,
+    .sab-nav__link.is-active { color: #2563eb; }
+
+    /* Right: flex items-center gap-3 */
+    .sab-nav__right { display: flex; align-items: center; gap: 0.75rem; }
+
+    /* text-gray-700 hover:text-blue-600 px-4 py-2 */
+    .sab-nav__login {
+      color: #374151; text-decoration: none;
+      padding: 0.5rem 1rem; font-size: 0.9375rem;
+      transition: color 0.15s;
+    }
+    .sab-nav__login:hover { color: #2563eb; }
+
+    /* bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 */
+    .sab-nav__signup {
+      background: #2563eb; color: #fff;
+      padding: 0.5rem 1rem; border-radius: 0.5rem;
+      font-size: 0.9375rem; font-weight: 500;
+      text-decoration: none; transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .sab-nav__signup:hover { background: #1d4ed8; }
+
+    /* Hamburger (mobile only) */
+    .sab-nav__hamburger {
+      display: flex; align-items: center; justify-content: center;
+      padding: 0.5rem; background: none; border: none;
+      cursor: pointer; border-radius: 0.5rem; color: #374151;
+    }
+    .sab-nav__hamburger:hover { background: #f3f4f6; }
+    @media (min-width: 768px) { .sab-nav__hamburger { display: none; } }
+
+    /* Mobile drawer */
+    .sab-nav__mobile {
+      display: none; flex-direction: column; gap: 0.25rem;
+      padding: 0.75rem 1rem 1rem;
+      border-top: 1px solid #e5e7eb;
+      background: rgba(255,255,255,0.97);
+    }
+    .sab-nav__mobile.is-open { display: flex; }
+    .sab-nav__mobile .sab-nav__link {
+      padding: 0.6rem 0.75rem;
+      border-radius: 0.5rem; display: block;
+    }
+    .sab-nav__mobile .sab-nav__link:hover { background: #f3f4f6; }
+    .sab-nav__mobile-sep {
+      height: 1px; background: #e5e7eb; margin: 0.5rem 0;
+    }
+    .sab-nav__mobile-actions {
+      display: flex; gap: 0.5rem;
+      padding: 0.25rem 0.75rem 0;
+    }
+    .sab-nav__mobile-actions .sab-nav__login {
+      border: 1px solid #e5e7eb; border-radius: 0.5rem;
+      font-size: 0.875rem;
+    }
+    .sab-nav__mobile-actions .sab-nav__signup { font-size: 0.875rem; }
+
+    /* ═══════════════════════
+       BODY OFFSET + BG
+    ═══════════════════════ */
+    .sab-page {
+      padding-top: 64px; /* fixed nav height */
+      min-height: 100vh;
+      background: #f9fafb;
+    }
+
+    /* ═══════════════════════════════════════
+       FOOTER  —  1:1 port of LandingPage footer
+       bg-gray-900 text-gray-300 py-12
+    ═══════════════════════════════════════ */
+    .sab-footer {
+      background: #111827;
+      color: #d1d5db;
+      padding: 3rem 1rem;
+    }
+    @media (min-width: 640px)  { .sab-footer { padding: 3rem 1.5rem; } }
+    @media (min-width: 1024px) { .sab-footer { padding: 3rem 2rem; } }
+
+    .sab-footer__inner { max-width: 1280px; margin: 0 auto; }
+
+    /* grid md:grid-cols-4 gap-8 */
+    .sab-footer__grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+    @media (min-width: 768px) {
+      .sab-footer__grid { grid-template-columns: repeat(4, 1fr); }
+    }
+
+    /* flex items-center gap-2 mb-4 */
+    .sab-footer__brand {
+      display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;
+    }
+    .sab-footer__brain {
+      /* w-6 h-6 text-blue-400 */
+      width: 24px; height: 24px; color: #60a5fa;
+    }
+    .sab-footer__brain svg { width: 100%; height: 100%; }
+    .sab-footer__brand-name { font-weight: 700; color: #fff; }
+    .sab-footer__tagline { font-size: 0.875rem; }
+
+    .sab-footer__col h4 {
+      font-weight: 700; color: #fff;
+      margin: 0 0 1rem; font-size: 1rem;
+    }
+    /* space-y-2 text-sm */
+    .sab-footer__col ul {
+      list-style: none; margin: 0; padding: 0;
+      display: flex; flex-direction: column; gap: 0.5rem;
+    }
+    .sab-footer__col a {
+      font-size: 0.875rem; color: #d1d5db;
+      text-decoration: none; transition: color 0.15s;
+    }
+    .sab-footer__col a:hover { color: #fff; }
+
+    /* border-t border-gray-800 mt-8 pt-8 text-center text-sm */
+    .sab-footer__bottom {
+      border-top: 1px solid #1f2937;
+      margin-top: 2rem; padding-top: 2rem;
+      text-align: center; font-size: 0.875rem;
+    }
+  </style>
 </head>
-<body class="tutorials-body">
-  <header class="tutorials-header">
-    <div class="shell header-shell">
-      <a href="/" class="brand-mark" aria-label="Sabhuku AI home">
-        <span class="brain-badge" aria-hidden="true">{% include "tutorials/partials/brain.svg" %}</span>
-        <span>Sabhuku AI</span>
-      </a>
-      <nav class="header-nav" aria-label="Primary">
-        <a href="{% url 'tutorials:index' %}" class="header-link">Community Tutorials</a>
-        <a href="/datasets" class="header-link">Datasets</a>
-        <a href="/models" class="header-link">Models</a>
-      </nav>
+<body>
+
+<!-- ═══ NAV ═══ -->
+<nav class="sab-nav" aria-label="Primary navigation">
+  <div class="sab-nav__inner">
+
+    <a href="/" class="sab-nav__brand" aria-label="Sabhuku AI home">
+      <span class="sab-nav__brain" aria-hidden="true">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/>
+          <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/>
+          <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/>
+          <path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/>
+          <path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/>
+          <path d="M3.477 10.896a4 4 0 0 1 .585-.396"/>
+          <path d="M19.938 10.5a4 4 0 0 1 .585.396"/>
+          <path d="M6 18a4 4 0 0 1-1.967-.516"/>
+          <path d="M19.967 17.484A4 4 0 0 1 18 18"/>
+        </svg>
+      </span>
+      <span class="sab-nav__brand-name">SABHUKU AI</span>
+    </a>
+
+    <ul class="sab-nav__links" role="list">
+      <li><a href="/#services" class="sab-nav__link">Services</a></li>
+      <li><a href="/#about"    class="sab-nav__link">About</a></li>
+      <li><a href="/#features" class="sab-nav__link">Features</a></li>
+      <li><a href="{% url 'tutorials:index' %}" class="sab-nav__link is-active">Community Tutorials</a></li>
+    </ul>
+
+    <div class="sab-nav__right">
+      <a href="/login"  class="sab-nav__login">Login</a>
+      <a href="/signup" class="sab-nav__signup">Get Started</a>
+      <button class="sab-nav__hamburger"
+              aria-label="Toggle navigation" aria-expanded="false" aria-controls="sab-mobile-nav"
+              onclick="var m=document.getElementById('sab-mobile-nav');m.classList.toggle('is-open');this.setAttribute('aria-expanded',m.classList.contains('is-open'));">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="4" x2="20" y1="6"  y2="6"/>
+          <line x1="4" x2="20" y1="12" y2="12"/>
+          <line x1="4" x2="20" y1="18" y2="18"/>
+        </svg>
+      </button>
     </div>
-  </header>
-  {% block content %}{% endblock %}
+  </div>
+
+  <!-- Mobile drawer -->
+  <div id="sab-mobile-nav" class="sab-nav__mobile" aria-label="Mobile navigation">
+    <a href="/#services" class="sab-nav__link">Services</a>
+    <a href="/#about"    class="sab-nav__link">About</a>
+    <a href="/#features" class="sab-nav__link">Features</a>
+    <a href="{% url 'tutorials:index' %}" class="sab-nav__link is-active">Community Tutorials</a>
+    <div class="sab-nav__mobile-sep"></div>
+    <div class="sab-nav__mobile-actions">
+      <a href="/login"  class="sab-nav__login">Login</a>
+      <a href="/signup" class="sab-nav__signup">Get Started</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══ MAIN CONTENT ═══ -->
+<div class="sab-page">
+  <main id="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer class="sab-footer">
+    <div class="sab-footer__inner">
+      <div class="sab-footer__grid">
+
+        <div>
+          <div class="sab-footer__brand">
+            <span class="sab-footer__brain" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/>
+                <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/>
+                <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/>
+              </svg>
+            </span>
+            <span class="sab-footer__brand-name">SABHUKU AI</span>
+          </div>
+          <p class="sab-footer__tagline">Empowering Zimbabwe and SADC with AI and data solutions.</p>
+        </div>
+
+        <div class="sab-footer__col">
+          <h4>Company</h4>
+          <ul>
+            <li><a href="/#about">About</a></li>
+            <li><a href="#">Contact</a></li>
+            <li><a href="#">Careers</a></li>
+          </ul>
+        </div>
+
+        <div class="sab-footer__col">
+          <h4>Legal</h4>
+          <ul>
+            <li><a href="#">Privacy</a></li>
+            <li><a href="#">Terms</a></li>
+            <li><a href="#">License</a></li>
+          </ul>
+        </div>
+
+        <div class="sab-footer__col">
+          <h4>Socials</h4>
+          <ul>
+            <li><a href="https://discord.gg/EytdFfRC" target="_blank" rel="noopener noreferrer">Discord</a></li>
+            <li><a href="{% url 'tutorials:feed' %}">RSS Feed</a></li>
+          </ul>
+        </div>
+
+      </div>
+      <div class="sab-footer__bottom">
+        <p>© {% now "Y" %} SABHUKU AI. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+</div>
+
 </body>
 </html>
-

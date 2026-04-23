@@ -181,13 +181,12 @@ class Tutorial(models.Model):
 
     @property
     def cover_storage_url(self):
-        if self.cover_image_path and getattr(settings, "GS_BUCKET_NAME", ""):
-            return f"https://storage.googleapis.com/{settings.GS_BUCKET_NAME}/{quote(self.cover_image_path, safe='/')}"
+        if self.cover_image_path and getattr(settings, "GS_MEDIA_BUCKET_NAME", ""):
+            return f"https://storage.googleapis.com/{settings.GS_MEDIA_BUCKET_NAME}/{quote(self.cover_image_path, safe='/')}"
         return self.cover_image_url
 
     @property
     def thumbnail_storage_url(self):
-        if self.thumbnail_image_path and getattr(settings, "GS_BUCKET_NAME", ""):
-            return f"https://storage.googleapis.com/{settings.GS_BUCKET_NAME}/{quote(self.thumbnail_image_path, safe='/')}"
+        if self.thumbnail_image_path and getattr(settings, "GS_MEDIA_BUCKET_NAME", ""):
+            return f"https://storage.googleapis.com/{settings.GS_MEDIA_BUCKET_NAME}/{quote(self.thumbnail_image_path, safe='/')}"
         return self.thumbnail_image_url or self.cover_storage_url
-
