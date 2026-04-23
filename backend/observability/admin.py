@@ -7,8 +7,14 @@ from django.db.models.functions import TruncDate
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
-from unfold.admin import ModelAdmin
-from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
+try:
+    from unfold.admin import ModelAdmin
+    from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
+except ImportError:  # pragma: no cover
+    from django.contrib.admin import ModelAdmin
+    AdminPasswordChangeForm = BaseUserAdmin.change_password_form
+    UserChangeForm = BaseUserAdmin.form
+    UserCreationForm = BaseUserAdmin.add_form
 
 from .models import ApplicationLog, EventLog
 

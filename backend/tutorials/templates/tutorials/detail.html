@@ -1,0 +1,113 @@
+{% extends "tutorials/base.html" %}
+{% load tutorial_extras %}
+{% block title %}{{ tutorial.title }} | Community Tutorials{% endblock %}
+{% block social_image %}<meta property="og:image" content="{{ thumbnail_image }}"><meta name="twitter:image" content="{{ thumbnail_image }}">{% endblock %}
+{% block structured_data %}<script type="application/ld+json">{{ article_schema_json|safe }}</script>{% endblock %}
+{% block content %}
+<main class="article-shell">
+  <section class="article-hero">
+    <div class="shell">
+      <div class="article-hero-copy">
+        <p class="eyebrow">Community Tutorial</p>
+        <h1>{{ tutorial.title }}</h1>
+        <p class="article-excerpt">{{ tutorial.excerpt }}</p>
+        <div class="article-meta article-meta-wrap">
+          <span>{{ tutorial.published_at|date:"F j, Y" }}</span>
+          <span>Updated {{ tutorial.last_revised_at|default:tutorial.updated_at|date:"F j, Y" }}</span>
+          <span>Rev {{ tutorial.revision_number }}</span>
+          <span>{{ tutorial.read_time_minutes }} min read</span>
+          <a href="{% url 'tutorials:author' public_username=tutorial.author.profile.public_username %}">{{ tutorial.author.get_full_name|default:tutorial.author.username }}</a>
+        </div>
+        <div class="chip-row">
+          {% for tag in tutorial.tags.all %}
+          <a href="{% url 'tutorials:tag' slug=tag.slug %}" class="chip chip-link">{{ tag.name }}</a>
+          {% endfor %}
+          {% for tag in tutorial.auto_tags %}
+          <span class="chip">{{ tag }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="cover-frame">
+        <img src="{{ cover_image }}" alt="{{ tutorial.cover_image_alt|default:tutorial.title }}" class="cover-image" loading="eager">
+      </div>
+    </div>
+  </section>
+  <section class="shell article-layout">
+    <aside class="toc-column">
+      <div class="sticky-card">
+        <p class="sidebar-title">On this page</p>
+        <nav class="toc-nav" aria-label="Table of contents">
+          {% for item in toc %}
+          <a href="#{{ item.id }}" class="toc-link level-{{ item.level }}" data-toc-link="{{ item.id }}">
+            <span class="toc-marker" aria-hidden="true">
+              <span class="brain-icon">{% include "tutorials/partials/brain.svg" %}</span>
+            </span>
+            <span>{{ item.title }}</span>
+          </a>
+          {% endfor %}
+        </nav>
+      </div>
+    </aside>
+    <article class="article-content">
+      <div class="prose" id="tutorial-content">{{ article_html|safe }}</div>
+    </article>
+    <aside class="right-column">
+      <section class="sidebar-panel">
+        <h2>More to read</h2>
+        <div class="related-list">
+          {% for related in related_tutorials %}
+          <a href="{{ related.absolute_url }}" class="related-card">
+            <img src="{{ related.thumbnail_storage_url|default:related.cover_storage_url|default:related.cover_image_url|default:fallback_image }}" alt="{{ related.cover_image_alt|default:related.title }}" loading="lazy">
+            <div>
+              <strong>{{ related.title }}</strong>
+              <span>{{ related.read_time_minutes }} min read</span>
+            </div>
+          </a>
+          {% empty %}
+          <p class="sidebar-copy">Related tutorials will appear as more articles are published.</p>
+          {% endfor %}
+        </div>
+      </section>
+      <section class="sidebar-panel cta-panel">
+        <h2>Share models or datasets</h2>
+        <p>Contribute to the ecosystem for free and help the community build faster.</p>
+        <div class="cta-actions">
+          <a href="/models" class="button-primary">Share a model</a>
+          <a href="/datasets" class="button-secondary">Share a dataset</a>
+        </div>
+      </section>
+    </aside>
+  </section>
+</main>
+<script>
+  (function () {
+    const fallbackImage = {{ fallback_image|to_json|safe }};
+    const articleImages = Array.from(document.querySelectorAll('#tutorial-content img, .related-card img, .cover-image'));
+    articleImages.forEach((img) => {
+      img.addEventListener('error', function onError() {
+        if (img.dataset.fallbackApplied === 'true') return;
+        img.dataset.fallbackApplied = 'true';
+        img.src = fallbackImage;
+      });
+      if (!img.complete) {
+        img.classList.add('is-loading');
+        img.addEventListener('load', () => img.classList.remove('is-loading'), { once: true });
+        img.addEventListener('error', () => img.classList.remove('is-loading'), { once: true });
+      }
+    });
+    const tocLinks = Array.from(document.querySelectorAll('[data-toc-link]'));
+    const sections = tocLinks.map((link) => document.getElementById(link.getAttribute('data-toc-link'))).filter(Boolean);
+    if (!sections.length) return;
+    const observer = new IntersectionObserver((entries) => {
+      const visible = entries.filter((entry) => entry.isIntersecting).sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+      if (!visible) return;
+      tocLinks.forEach((link) => {
+        const active = link.getAttribute('data-toc-link') === visible.target.id;
+        link.classList.toggle('is-active', active);
+      });
+    }, { rootMargin: '-25% 0px -55% 0px', threshold: [0.1, 0.35, 0.6] });
+    sections.forEach((section) => observer.observe(section));
+  }());
+</script>
+{% endblock %}
+

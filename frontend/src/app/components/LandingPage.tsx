@@ -17,6 +17,7 @@ export function LandingPage() {
               <a href="#services" className="text-gray-800 font-semibold hover:text-blue-600">Services</a>
               <a href="#about" className="text-gray-800 font-semibold hover:text-blue-600">About</a>
               <a href="#features" className="text-gray-800 font-semibold hover:text-blue-600">Features</a>
+              <a href="/community/tutorials/" className="text-gray-800 font-semibold hover:text-blue-600">Community Tutorials</a>
             </div>
             <div className="flex items-center gap-3">
               <Link to="/login" className="text-gray-700 hover:text-blue-600 px-4 py-2">
@@ -69,6 +70,9 @@ export function LandingPage() {
                 </Link>
                 <a href="#support" className="bg-white text-gray-900 px-8 py-4 rounded-xl hover:bg-gray-50 border border-gray-300">
                   Get Support
+                </a>
+                <a href="/community/tutorials/" className="bg-white text-gray-900 px-8 py-4 rounded-xl hover:bg-gray-50 border border-gray-300">
+                  Read Tutorials
                 </a>
                 <Link to="/login" className="bg-white text-gray-900 px-8 py-4 rounded-xl hover:bg-gray-50 border border-gray-300">
                   Explore Platform

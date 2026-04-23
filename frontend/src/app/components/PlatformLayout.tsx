@@ -98,6 +98,13 @@ export function PlatformLayout({ children }: PlatformLayoutProps) {
                     {item.label}
                   </Link>
                 ))}
+                <a
+                  href="/community/tutorials/"
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  Community Tutorials
+                </a>
               </div>
             </div>
 

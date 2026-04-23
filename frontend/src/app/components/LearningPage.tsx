@@ -1,7 +1,45 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import { PlatformLayout } from "./PlatformLayout";
-import { BookOpen, Clock, Award, Play, CheckCircle } from "lucide-react";
+import { BookOpen, Clock, Award, Play, CheckCircle, FilePenLine, Loader2 } from "lucide-react";
+import { useAuth } from "./AuthContext";
+import { fetchMyTutorials } from "../api/tutorialApi";
+import { Tutorial } from "../../types";
 
 export function LearningPage() {
+  const { token } = useAuth();
+  const [tutorials, setTutorials] = useState<Tutorial[]>([]);
+  const [tutorialsLoading, setTutorialsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTutorials = async () => {
+      if (!token) return;
+
+      try {
+        const data = await fetchMyTutorials(token);
+        if (!cancelled) {
+          setTutorials(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setTutorials([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setTutorialsLoading(false);
+        }
+      }
+    };
+
+    void loadTutorials();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
   const courses = [
     {
       id: 1,
@@ -117,6 +155,99 @@ export function LearningPage() {
   return (
     <PlatformLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <section className="mb-8 overflow-hidden rounded-3xl border border-blue-100 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_30%),linear-gradient(135deg,_#f8fbff_0%,_#eef4ff_45%,_#ffffff_100%)] p-8 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <span className="inline-flex rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700">
+                Community Tutorials
+              </span>
+              <h1 className="mt-4 text-4xl font-bold tracking-tight text-slate-950">
+                Write and manage tutorials in the app
+              </h1>
+              <p className="mt-3 text-lg text-slate-600">
+                Create search-optimized technical articles with markdown, code blocks, images, metadata, and publish controls directly from Sabhuku AI.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                to="/tutorials/studio/new"
+                className="inline-flex items-center justify-center rounded-xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                New tutorial
+              </Link>
+              <a
+                href="/community/tutorials/"
+                className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                View public hub
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <section className="mb-8 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="mb-5 flex items-center justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-slate-950">Your tutorials</h2>
+              <p className="mt-1 text-sm text-slate-500">Drafts and published articles tied to your account.</p>
+            </div>
+            <Link
+              to="/tutorials/studio/new"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              <FilePenLine className="h-4 w-4" />
+              Open editor
+            </Link>
+          </div>
+
+          {tutorialsLoading ? (
+            <div className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-4 text-sm text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading your tutorials...
+            </div>
+          ) : tutorials.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center">
+              <h3 className="text-lg font-semibold text-slate-900">No tutorials yet</h3>
+              <p className="mt-2 text-sm text-slate-500">Start writing your first community tutorial and publish it into the SEO hub.</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {tutorials.map((tutorial) => (
+                <div
+                  key={tutorial.id}
+                  className="flex flex-col gap-4 rounded-2xl border border-slate-200 p-4 lg:flex-row lg:items-center lg:justify-between"
+                >
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                      <span>{tutorial.status}</span>
+                      <span>•</span>
+                      <span>{tutorial.read_time_minutes} min read</span>
+                      <span>•</span>
+                      <span>Rev {tutorial.revision_number}</span>
+                    </div>
+                    <h3 className="mt-2 text-lg font-semibold text-slate-950">{tutorial.title}</h3>
+                    <p className="mt-1 text-sm text-slate-600">{tutorial.excerpt || "No excerpt yet."}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <Link
+                      to={`/tutorials/studio/${tutorial.slug}`}
+                      className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      Edit
+                    </Link>
+                    <a
+                      href={`/community/tutorials/${tutorial.slug}/`}
+                      className="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800"
+                    >
+                      Preview page
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Learning Resources</h1>

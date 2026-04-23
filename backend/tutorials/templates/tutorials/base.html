@@ -1,0 +1,40 @@
+{% load static tutorial_extras %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ page_title }} | Sabhuku AI{% endblock %}</title>
+  <meta name="description" content="{{ meta_description }}">
+  <link rel="canonical" href="{{ canonical_url }}">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="Sabhuku AI">
+  <meta property="og:title" content="{{ page_title }}">
+  <meta property="og:description" content="{{ meta_description }}">
+  <meta property="og:url" content="{{ canonical_url }}">
+  {% block social_image %}<meta property="og:image" content="{% tutorial_fallback_image %}">{% endblock %}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ page_title }}">
+  <meta name="twitter:description" content="{{ meta_description }}">
+  {% block structured_data %}{% endblock %}
+  <link rel="alternate" type="application/rss+xml" title="Sabhuku AI Community Tutorials" href="{% url 'tutorials:feed' %}">
+  <link rel="stylesheet" href="{% static 'tutorials/css/community-tutorials.css' %}">
+</head>
+<body class="tutorials-body">
+  <header class="tutorials-header">
+    <div class="shell header-shell">
+      <a href="/" class="brand-mark" aria-label="Sabhuku AI home">
+        <span class="brain-badge" aria-hidden="true">{% include "tutorials/partials/brain.svg" %}</span>
+        <span>Sabhuku AI</span>
+      </a>
+      <nav class="header-nav" aria-label="Primary">
+        <a href="{% url 'tutorials:index' %}" class="header-link">Community Tutorials</a>
+        <a href="/datasets" class="header-link">Datasets</a>
+        <a href="/models" class="header-link">Models</a>
+      </nav>
+    </div>
+  </header>
+  {% block content %}{% endblock %}
+</body>
+</html>
+

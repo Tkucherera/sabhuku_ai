@@ -1,0 +1,83 @@
+{% extends "tutorials/base.html" %}
+{% block title %}Community Tutorials | Sabhuku AI{% endblock %}
+{% block content %}
+<main>
+  <section class="hero-band">
+    <div class="shell hero-grid">
+      <div>
+        <span class="eyebrow">SEO-first knowledge hub</span>
+        <h1>Community Tutorials</h1>
+        <p class="hero-copy">Practical AI guides, architecture walkthroughs, and implementation notes designed to help teams trust Sabhuku AI as a serious solution partner.</p>
+      </div>
+      <div class="hero-card">
+        <p class="hero-stat">SEO</p>
+        <p class="hero-stat-label">Crawlable articles with structured metadata, related content, tag archives, and feed support.</p>
+      </div>
+    </div>
+  </section>
+  <section class="shell article-grid-section">
+    {% if featured_tutorial %}
+    <article class="featured-card">
+      <a href="{{ featured_tutorial.absolute_url }}" class="featured-media">
+        <img src="{{ featured_tutorial.cover_storage_url|default:featured_tutorial.cover_image_url|default:'' }}" alt="{{ featured_tutorial.cover_image_alt|default:featured_tutorial.title }}" loading="eager">
+      </a>
+      <div class="featured-content">
+        <p class="meta-row">Featured tutorial</p>
+        <h2><a href="{{ featured_tutorial.absolute_url }}">{{ featured_tutorial.title }}</a></h2>
+        <p>{{ featured_tutorial.excerpt }}</p>
+        <div class="article-meta">
+          <span>{{ featured_tutorial.read_time_minutes }} min read</span>
+          <span>Rev {{ featured_tutorial.revision_number }}</span>
+          <span>{{ featured_tutorial.published_at|date:"M j, Y" }}</span>
+        </div>
+      </div>
+    </article>
+    {% endif %}
+    <div class="content-with-sidebar">
+      <section class="tutorial-card-list">
+        {% for tutorial in tutorials %}
+        <article class="tutorial-card">
+          <a href="{{ tutorial.absolute_url }}" class="card-image">
+            <img src="{{ tutorial.thumbnail_storage_url|default:tutorial.cover_storage_url|default:tutorial.cover_image_url|default:'' }}" alt="{{ tutorial.cover_image_alt|default:tutorial.title }}" loading="lazy">
+          </a>
+          <div class="card-copy">
+            <p class="meta-row">{{ tutorial.published_at|date:"M j, Y" }} • {{ tutorial.read_time_minutes }} min read</p>
+            <h2><a href="{{ tutorial.absolute_url }}">{{ tutorial.title }}</a></h2>
+            <p>{{ tutorial.excerpt }}</p>
+            <div class="chip-row">
+              {% for tag in tutorial.public_tags|slice:":4" %}
+              <span class="chip">{{ tag }}</span>
+              {% endfor %}
+            </div>
+          </div>
+        </article>
+        {% empty %}
+        <article class="empty-state">
+          <h2>No tutorials are live yet</h2>
+          <p>Publish the first article to activate the SEO hub.</p>
+        </article>
+        {% endfor %}
+      </section>
+      <aside class="right-column">
+        <section class="sidebar-panel">
+          <h2>Popular tags</h2>
+          <div class="chip-row">
+            {% for tag in popular_tags %}
+            <a href="{% url 'tutorials:tag' slug=tag.slug %}" class="chip chip-link">{{ tag.name }}</a>
+            {% endfor %}
+          </div>
+        </section>
+        <section class="sidebar-panel cta-panel">
+          <h2>Share with the community</h2>
+          <p>Contribute models or datasets for free and help more builders ship useful AI systems.</p>
+          <div class="cta-actions">
+            <a href="/models" class="button-primary">Share a model</a>
+            <a href="/datasets" class="button-secondary">Share a dataset</a>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </section>
+</main>
+{% endblock %}
+

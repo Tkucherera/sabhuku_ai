@@ -1,5 +1,8 @@
 from django.contrib import admin
-from unfold.admin import ModelAdmin
+try:
+    from unfold.admin import ModelAdmin
+except ImportError:  # pragma: no cover
+    from django.contrib.admin import ModelAdmin
 
 from .models import Discussion
 

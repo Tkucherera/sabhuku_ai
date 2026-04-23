@@ -12,7 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 from datetime import timedelta
-
+import importlib.util
 import os
 
 from django.templatetags.static import static
@@ -37,13 +37,16 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-ip2d(a^%_o#d^vf_!vk*p2s-y9
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', 'localhost,127.0.0.1')
+ALLOWED_HOSTS = env_list('ALLOWED_HOSTS', 'localhost,127.0.0.1,testserver')
 
 
 # Application definition
 
+UNFOLD_INSTALLED = importlib.util.find_spec("unfold") is not None
+CORSHEADERS_INSTALLED = importlib.util.find_spec("corsheaders") is not None
+WHITENOISE_INSTALLED = importlib.util.find_spec("whitenoise") is not None
+
 INSTALLED_APPS = [
-    'unfold',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -55,10 +58,10 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'rest_framework_simplejwt.token_blacklist',
     'rest_framework_simplejwt',
-    'corsheaders',
     'api',
     'discussions',
     'hardware_orch',
+    'tutorials',
     'observability.apps.ObservabilityConfig',
 
     # all auth
@@ -71,11 +74,14 @@ INSTALLED_APPS = [
     'dj_rest_auth.registration',
 ]
 
+if UNFOLD_INSTALLED:
+    INSTALLED_APPS.insert(0, "unfold")
+if CORSHEADERS_INSTALLED:
+    INSTALLED_APPS.insert(8, "corsheaders")
+
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -84,6 +90,11 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+if CORSHEADERS_INSTALLED:
+    MIDDLEWARE.insert(0, "corsheaders.middleware.CorsMiddleware")
+if WHITENOISE_INSTALLED:
+    MIDDLEWARE.insert(3, "whitenoise.middleware.WhiteNoiseMiddleware")
 
 REST_AUTH = {
     'USE_JWT': True,
@@ -227,133 +238,92 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+if WHITENOISE_INSTALLED:
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-UNFOLD = {
-    "SITE_TITLE": "Sabhuku Admin",
-    "SITE_HEADER": "SABHUKU AI",
-    "SITE_SUBHEADER": "Operations Console",
-    "SITE_URL": "/dashboard",
-    "SITE_SYMBOL": "neurology",
-    "SHOW_HISTORY": True,
-    "SHOW_VIEW_ON_SITE": False,
-    "BORDER_RADIUS": "14px",
-    "THEME": "light",
-    "STYLES": [
-        lambda request: static("admin/css/sabhuku-admin.css"),
-    ],
-    "DASHBOARD_CALLBACK": "observability.dashboard.admin_dashboard_callback",
-    "COLORS": {
-        "base": {
-            "50": "#f8fafc",
-            "100": "#f1f5f9",
-            "200": "#e2e8f0",
-            "300": "#cbd5e1",
-            "400": "#94a3b8",
-            "500": "#64748b",
-            "600": "#475569",
-            "700": "#334155",
-            "800": "#1e293b",
-            "900": "#0f172a",
-            "950": "#020617",
-        },
-        "primary": {
-            "50": "#eff6ff",
-            "100": "#dbeafe",
-            "200": "#bfdbfe",
-            "300": "#93c5fd",
-            "400": "#60a5fa",
-            "500": "#3b82f6",
-            "600": "#2563eb",
-            "700": "#1d4ed8",
-            "800": "#1e40af",
-            "900": "#1e3a8a",
-            "950": "#172554",
-        },
-        "font": {
-            "subtle-light": "#64748b",
-            "default-light": "#334155",
-            "important-light": "#0f172a",
-        },
-    },
-    "SIDEBAR": {
-        "show_search": True,
-        "show_all_applications": False,
-        "navigation": [
-            {
-                "title": _("Workspace"),
-                "separator": True,
-                "items": [
-                    {
-                        "title": _("Overview"),
-                        "icon": "dashboard",
-                        "link": reverse_lazy("admin:index"),
-                    },
-                    {
-                        "title": _("Observability"),
-                        "icon": "monitoring",
-                        "link": reverse_lazy("admin:observability_dashboard"),
-                    },
-                ],
-            },
-            {
-                "title": _("Content"),
-                "items": [
-                    {
-                        "title": _("Models"),
-                        "icon": "inventory_2",
-                        "link": reverse_lazy("admin:api_model_changelist"),
-                    },
-                    {
-                        "title": _("Datasets"),
-                        "icon": "database",
-                        "link": reverse_lazy("admin:api_dataset_changelist"),
-                    },
-                    {
-                        "title": _("Discussions"),
-                        "icon": "forum",
-                        "link": reverse_lazy("admin:discussions_discussion_changelist"),
-                    },
-                ],
-            },
-            {
-                "title": _("System"),
-                "items": [
-                    {
-                        "title": _("Users"),
-                        "icon": "group",
-                        "link": reverse_lazy("admin:auth_user_changelist"),
-                    },
-                    {
-                        "title": _("Groups"),
-                        "icon": "shield",
-                        "link": reverse_lazy("admin:auth_group_changelist"),
-                    },
-                    {
-                        "title": _("Hardware Profiles"),
-                        "icon": "memory",
-                        "link": reverse_lazy("admin:hardware_orch_hardwareprofile_changelist"),
-                    },
-                    {
-                        "title": _("Model Profiling"),
-                        "icon": "tune",
-                        "link": reverse_lazy("admin:hardware_orch_modelprofile_changelist"),
-                    },
-                    {
-                        "title": _("App Logs"),
-                        "icon": "receipt_long",
-                        "link": reverse_lazy("admin:observability_applicationlog_changelist"),
-                    },
-                    {
-                        "title": _("Event Logs"),
-                        "icon": "event_note",
-                        "link": reverse_lazy("admin:observability_eventlog_changelist"),
-                    },
-                ],
-            },
+if UNFOLD_INSTALLED:
+    UNFOLD = {
+        "SITE_TITLE": "Sabhuku Admin",
+        "SITE_HEADER": "SABHUKU AI",
+        "SITE_SUBHEADER": "Operations Console",
+        "SITE_URL": "/dashboard",
+        "SITE_SYMBOL": "neurology",
+        "SHOW_HISTORY": True,
+        "SHOW_VIEW_ON_SITE": False,
+        "BORDER_RADIUS": "14px",
+        "THEME": "light",
+        "STYLES": [
+            lambda request: static("admin/css/sabhuku-admin.css"),
         ],
-    },
-}
+        "DASHBOARD_CALLBACK": "observability.dashboard.admin_dashboard_callback",
+        "COLORS": {
+            "base": {
+                "50": "#f8fafc",
+                "100": "#f1f5f9",
+                "200": "#e2e8f0",
+                "300": "#cbd5e1",
+                "400": "#94a3b8",
+                "500": "#64748b",
+                "600": "#475569",
+                "700": "#334155",
+                "800": "#1e293b",
+                "900": "#0f172a",
+                "950": "#020617",
+            },
+            "primary": {
+                "50": "#eff6ff",
+                "100": "#dbeafe",
+                "200": "#bfdbfe",
+                "300": "#93c5fd",
+                "400": "#60a5fa",
+                "500": "#3b82f6",
+                "600": "#2563eb",
+                "700": "#1d4ed8",
+                "800": "#1e40af",
+                "900": "#1e3a8a",
+                "950": "#172554",
+            },
+            "font": {
+                "subtle-light": "#64748b",
+                "default-light": "#334155",
+                "important-light": "#0f172a",
+            },
+        },
+        "SIDEBAR": {
+            "show_search": True,
+            "show_all_applications": False,
+            "navigation": [
+                {
+                    "title": _("Workspace"),
+                    "separator": True,
+                    "items": [
+                        {"title": _("Overview"), "icon": "dashboard", "link": reverse_lazy("admin:index")},
+                        {"title": _("Observability"), "icon": "monitoring", "link": reverse_lazy("admin:observability_dashboard")},
+                    ],
+                },
+                {
+                    "title": _("Content"),
+                    "items": [
+                        {"title": _("Models"), "icon": "inventory_2", "link": reverse_lazy("admin:api_model_changelist")},
+                        {"title": _("Datasets"), "icon": "database", "link": reverse_lazy("admin:api_dataset_changelist")},
+                        {"title": _("Discussions"), "icon": "forum", "link": reverse_lazy("admin:discussions_discussion_changelist")},
+                        {"title": _("Community Tutorials"), "icon": "article", "link": reverse_lazy("admin:tutorials_tutorial_changelist")},
+                    ],
+                },
+                {
+                    "title": _("System"),
+                    "items": [
+                        {"title": _("Users"), "icon": "group", "link": reverse_lazy("admin:auth_user_changelist")},
+                        {"title": _("Groups"), "icon": "shield", "link": reverse_lazy("admin:auth_group_changelist")},
+                        {"title": _("Hardware Profiles"), "icon": "memory", "link": reverse_lazy("admin:hardware_orch_hardwareprofile_changelist")},
+                        {"title": _("Model Profiling"), "icon": "tune", "link": reverse_lazy("admin:hardware_orch_modelprofile_changelist")},
+                        {"title": _("App Logs"), "icon": "receipt_long", "link": reverse_lazy("admin:observability_applicationlog_changelist")},
+                        {"title": _("Event Logs"), "icon": "event_note", "link": reverse_lazy("admin:observability_eventlog_changelist")},
+                    ],
+                },
+            ],
+        },
+    }
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'False') == 'True'
@@ -368,6 +338,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 GS_BUCKET_NAME = os.getenv("GS_BUCKET_NAME", "sabhuku-bucket")
 GS_UPLOAD_URL_EXPIRATION_MINUTES = int(os.getenv("GS_UPLOAD_URL_EXPIRATION_MINUTES", "15"))
 GS_DOWNLOAD_URL_EXPIRATION_HOURS = int(os.getenv("GS_DOWNLOAD_URL_EXPIRATION_HOURS", "1"))
+PUBLIC_SITE_URL = os.getenv("PUBLIC_SITE_URL", "")
 
 
 
