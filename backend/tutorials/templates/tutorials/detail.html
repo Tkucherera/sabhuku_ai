@@ -264,6 +264,175 @@
   .art-author__name:hover { color: #2563eb; }
   .art-author__bio { font-size: 0.9rem; color: var(--gray-500); line-height: 1.55; margin: 0; }
 
+  /* Discussion */
+  .discussion {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--gray-200);
+  }
+  .discussion__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  .discussion__title {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--gray-900);
+  }
+  .discussion__count {
+    font-size: 0.9rem;
+    color: var(--gray-500);
+  }
+  .discussion__intro,
+  .discussion__empty,
+  .discussion__auth {
+    margin: 0 0 1rem;
+    color: var(--gray-500);
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+  .discussion__auth a {
+    color: #2563eb;
+    text-decoration: none;
+  }
+  .discussion__auth a:hover { text-decoration: underline; }
+  .discussion-form {
+    background: var(--gray-50);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .discussion-form__label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--gray-700);
+    margin-bottom: 0.5rem;
+  }
+  .discussion-form__textarea {
+    width: 100%;
+    min-height: 120px;
+    resize: vertical;
+    border: 1px solid var(--gray-200);
+    border-radius: 0.75rem;
+    padding: 0.85rem 0.95rem;
+    font: inherit;
+    color: var(--gray-900);
+    background: var(--white);
+    box-sizing: border-box;
+  }
+  .discussion-form__textarea:focus {
+    outline: 2px solid rgba(37, 99, 235, 0.15);
+    border-color: #93c5fd;
+  }
+  .discussion-form__actions {
+    margin-top: 0.75rem;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .discussion-submit {
+    width: auto;
+    margin-bottom: 0;
+  }
+  .discussion-form__error {
+    margin: 0 0 0.75rem;
+    color: #b91c1c;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+  .discussion-thread {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .discussion-comment {
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    background: var(--white);
+    padding: 1rem;
+  }
+  .discussion-comment__header {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+  .discussion-comment__avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+  .discussion-comment__avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .discussion-comment__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 0.6rem;
+    font-size: 0.85rem;
+    color: var(--gray-500);
+    align-items: center;
+  }
+  .discussion-comment__meta strong {
+    color: var(--gray-900);
+    font-size: 0.95rem;
+  }
+  .discussion-comment__body {
+    color: var(--gray-700);
+    line-height: 1.7;
+    font-size: 0.98rem;
+  }
+  .discussion-reply-toggle {
+    margin-top: 0.85rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #2563eb;
+    font-size: 0.88rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .discussion-reply-form {
+    margin-top: 0.85rem;
+    padding-top: 0.85rem;
+    border-top: 1px solid var(--gray-100);
+  }
+  .discussion-comment__replies {
+    margin-top: 1rem;
+    margin-left: 1.25rem;
+    padding-left: 1rem;
+    border-left: 2px solid var(--gray-100);
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+  }
+  .discussion-comment__replies .discussion-comment {
+    background: var(--gray-50);
+  }
+  @media (max-width: 640px) {
+    .discussion-comment__replies {
+      margin-left: 0.5rem;
+      padding-left: 0.75rem;
+    }
+  }
+
   /* ── Right sidebar ── */
   .art-right {
     position: sticky; top: calc(64px + 3rem);
@@ -469,6 +638,44 @@
         {% endif %}
       </div>
     </div>
+
+    <section class="discussion" id="comments" aria-labelledby="comments-title">
+      <div class="discussion__header">
+        <h2 class="discussion__title" id="comments-title">Discussion</h2>
+        <span class="discussion__count">{{ discussion_count }} comment{{ discussion_count|pluralize }}</span>
+      </div>
+
+      <p class="discussion__intro">Ask questions, share improvements, or add context for the next person reading this tutorial.</p>
+
+      {% if request.user.is_authenticated %}
+      <form method="post" class="discussion-form">
+        {% csrf_token %}
+        {% if comments_error %}
+        <p class="discussion-form__error">{{ comments_error }}</p>
+        {% endif %}
+        <label class="discussion-form__label" for="comment-content">Add a comment</label>
+        <textarea id="comment-content" name="content" class="discussion-form__textarea" placeholder="What stood out, what broke, or what would you add?">{{ comments_form.content }}</textarea>
+        <input type="hidden" name="parent" value="">
+        <div class="discussion-form__actions">
+          <button type="submit" class="btn-primary discussion-submit">Post comment</button>
+        </div>
+      </form>
+      {% else %}
+      <p class="discussion__auth">
+        <a href="/login">Sign in</a> to add a comment.
+      </p>
+      {% endif %}
+
+      {% if discussion_threads %}
+      <div class="discussion-thread">
+        {% for comment in discussion_threads %}
+          {% include "tutorials/partials/comment.html" with comment=comment %}
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="discussion__empty">No comments yet. Start the thread.</p>
+      {% endif %}
+    </section>
   </article>
 
   <!-- Right sidebar -->
@@ -549,6 +756,22 @@
     links.forEach(function (l) { l.classList.toggle('is-active', l.dataset.toc === hit.target.id); });
   }, { rootMargin: '-20% 0px -55% 0px', threshold: [0.1, 0.35, 0.6] });
   sections.forEach(function (s) { obs.observe(s); });
+
+  document.querySelectorAll('[data-reply-toggle]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var form = document.getElementById(button.getAttribute('data-reply-toggle'));
+      if (!form) return;
+      var willShow = form.hasAttribute('hidden');
+      document.querySelectorAll('.discussion-reply-form').forEach(function (replyForm) {
+        replyForm.setAttribute('hidden', 'hidden');
+      });
+      if (willShow) {
+        form.removeAttribute('hidden');
+        var textarea = form.querySelector('textarea');
+        if (textarea) textarea.focus();
+      }
+    });
+  });
 }());
 </script>
 {% endblock %}

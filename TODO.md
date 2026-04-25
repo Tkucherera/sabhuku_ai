@@ -11,7 +11,7 @@
 8. Use Policies (Legal -for the future)
 
 
-## Big Lifts
+## Big Lifts Physi
 - Dev Ops and QA
     - Staged Local, Staging and Production environment 
     - Developing Deployment scopes, release schedules, testing, change logs

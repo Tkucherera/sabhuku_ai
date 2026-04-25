@@ -1,0 +1,45 @@
+<article class="discussion-comment" id="comment-{{ comment.id }}">
+  <div class="discussion-comment__header">
+    <span class="discussion-comment__avatar">
+      {% if comment.user.profile.avatar_url %}
+      <img src="{{ comment.user.profile.avatar_url }}" alt="{{ comment.user.get_full_name|default:comment.user.username }}">
+      {% elif comment.user.first_name or comment.user.last_name %}
+      {{ comment.user.first_name.0|upper }}{{ comment.user.last_name.0|upper }}
+      {% else %}
+      {{ comment.user.username.0|upper }}
+      {% endif %}
+    </span>
+    <div class="discussion-comment__meta">
+      <strong>{{ comment.user.get_full_name|default:comment.user.username }}</strong>
+      <span>@{{ comment.user.profile.public_username|default:comment.user.username }}</span>
+      <time datetime="{{ comment.created_at|date:'c' }}">{{ comment.created_at|date:"M j, Y \a\\t g:i A" }}</time>
+    </div>
+  </div>
+
+  <div class="discussion-comment__body">
+    {{ comment.content|linebreaksbr }}
+  </div>
+
+  {% if request.user.is_authenticated %}
+  <button class="discussion-reply-toggle" type="button" data-reply-toggle="reply-form-{{ comment.id }}">
+    Reply
+  </button>
+  <form method="post" class="discussion-reply-form" id="reply-form-{{ comment.id }}" hidden>
+    {% csrf_token %}
+    <input type="hidden" name="parent" value="{{ comment.id }}">
+    <label class="discussion-form__label" for="reply-content-{{ comment.id }}">Reply</label>
+    <textarea id="reply-content-{{ comment.id }}" name="content" rows="3" class="discussion-form__textarea" placeholder="Add a reply"></textarea>
+    <div class="discussion-form__actions">
+      <button type="submit" class="btn-primary discussion-submit">Post reply</button>
+    </div>
+  </form>
+  {% endif %}
+
+  {% if comment.thread_replies %}
+  <div class="discussion-comment__replies">
+    {% for comment in comment.thread_replies %}
+      {% include "tutorials/partials/comment.html" with comment=comment %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</article>

@@ -2,6 +2,7 @@ from django.contrib.auth.models import User
 from django.db import models
 
 from api.models import Dataset, Model
+from tutorials.models import Tutorial
 
 
 class Discussion(models.Model):
@@ -29,10 +30,17 @@ class Discussion(models.Model):
         blank=True,
         related_name="model_discussions",
     )
+    tutorial = models.ForeignKey(
+        Tutorial,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="tutorial_discussions",
+    )
 
     class Meta:
         ordering = ["-created_at"]
 
     def __str__(self):
-        target = self.dataset_id or self.model_id or "unknown"
+        target = self.dataset_id or self.model_id or self.tutorial_id or "unknown"
         return f"Discussion by {self.user.username} on {target}"
