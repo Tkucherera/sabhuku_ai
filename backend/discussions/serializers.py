@@ -18,6 +18,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
             "parent",
             "dataset",
             "model",
+            "tutorial",
             "author_username",
             "author_public_username",
             "author_display_name",
@@ -27,6 +28,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
             "id",
             "created_at",
             "model",
+            "tutorial",
             "author_username",
             "author_public_username",
             "author_display_name",
@@ -49,9 +51,12 @@ class DiscussionSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         dataset = self.context.get("dataset")
+        tutorial = self.context.get("tutorial")
         parent = attrs.get("parent")
 
         if parent and dataset and parent.dataset_id != dataset.id:
             raise serializers.ValidationError({"parent": "reply must belong to the same dataset"})
+        if parent and tutorial and parent.tutorial_id != tutorial.id:
+            raise serializers.ValidationError({"parent": "reply must belong to the same tutorial"})
 
         return attrs

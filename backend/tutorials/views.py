@@ -8,7 +8,7 @@ from urllib.parse import quote
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.http import Http404, HttpResponse
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import timezone
@@ -19,6 +19,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from google.cloud import storage
+from discussions.models import Discussion
 
 from .models import Tutorial, TutorialTag
 from .serializers import TutorialSerializer, TutorialWriteSerializer
@@ -118,6 +119,28 @@ def tutorial_context(tutorial):
         "canonical_url": canonical_url,
         "article_schema_json": json.dumps(article_schema),
     }
+
+
+def tutorial_discussion_tree(tutorial):
+    discussions = list(
+        Discussion.objects.select_related("user", "user__profile")
+        .filter(tutorial=tutorial)
+        .order_by("created_at", "id")
+    )
+    by_parent = {}
+    for discussion in discussions:
+        by_parent.setdefault(discussion.parent_id, []).append(discussion)
+
+    def attach_children(parent):
+        children = by_parent.get(parent.id, [])
+        parent.thread_replies = children
+        for child in children:
+            attach_children(child)
+
+    roots = by_parent.get(None, [])
+    for root in roots:
+        attach_children(root)
+    return roots
 
 
 def _storage_bucket():
@@ -266,8 +289,50 @@ def tutorial_index(request):
 
 
 def tutorial_detail(request, slug):
-    tutorial = get_object_or_404(Tutorial.objects.select_related("author", "author__profile").prefetch_related("tags"), slug=slug, status=Tutorial.STATUS_PUBLISHED)
-    return render(request, "tutorials/detail.html", tutorial_context(tutorial))
+    tutorial = get_object_or_404(
+        Tutorial.objects.select_related("author", "author__profile").prefetch_related("tags"),
+        slug=slug,
+        status=Tutorial.STATUS_PUBLISHED,
+    )
+    comments_error = ""
+    comments_form = {"content": "", "parent": ""}
+
+    if request.method == "POST":
+        comments_form = {
+            "content": (request.POST.get("content") or "").strip(),
+            "parent": (request.POST.get("parent") or "").strip(),
+        }
+        if not request.user.is_authenticated:
+            comments_error = "Sign in to join the discussion."
+        elif not comments_form["content"]:
+            comments_error = "Comment text cannot be blank."
+        else:
+            parent = None
+            parent_id = comments_form["parent"]
+            if parent_id:
+                parent = Discussion.objects.filter(tutorial=tutorial, pk=parent_id).first()
+                if not parent:
+                    comments_error = "That reply target could not be found."
+
+            if not comments_error:
+                comment = Discussion.objects.create(
+                    user=request.user,
+                    tutorial=tutorial,
+                    parent=parent,
+                    content=comments_form["content"],
+                )
+                return redirect(f"{tutorial.absolute_url}#comment-{comment.id}")
+
+    context = tutorial_context(tutorial)
+    context.update(
+        {
+            "discussion_threads": tutorial_discussion_tree(tutorial),
+            "discussion_count": Discussion.objects.filter(tutorial=tutorial).count(),
+            "comments_error": comments_error,
+            "comments_form": comments_form,
+        }
+    )
+    return render(request, "tutorials/detail.html", context)
 
 
 def tutorial_tag_archive(request, slug):
