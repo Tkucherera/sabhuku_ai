@@ -3,6 +3,7 @@ from django.test import TestCase
 from rest_framework import status
 
 from .models import Discussion
+from api.models import Model
 from tutorials.models import Tutorial
 
 
@@ -50,7 +51,7 @@ class TutorialDiscussionTests(TestCase):
         )
 
     def test_tutorial_discussions_api_supports_threads(self):
-        self.client.force_login(self.commenter)
+        self.client.force_authenticate(user=self.commenter)
         root = Discussion.objects.create(user=self.commenter, tutorial=self.tutorial, content="Top level thought")
 
         create_response = self.client.post(
@@ -66,3 +67,29 @@ class TutorialDiscussionTests(TestCase):
         self.assertEqual(list_response.json()[0]["content"], "Top level thought")
         self.assertEqual(len(list_response.json()[0]["replies"]), 1)
         self.assertEqual(list_response.json()[0]["replies"][0]["content"], "Follow-up note")
+
+    def test_model_discussions_api_supports_threads(self):
+        self.client.force_authenticate(user=self.commenter)
+        model = Model.objects.create(
+            name="Shona Reasoner",
+            author=self.author,
+            description="A local language model.",
+            category="NLP",
+            tags=["shona", "llm"],
+            updated="2026-04-25T00:00:00Z",
+            file_path="models/1/shona-reasoner.bin",
+            license="Custom",
+        )
+        root = Discussion.objects.create(user=self.commenter, model=model, content="Can this run on 16GB VRAM?")
+
+        create_response = self.client.post(
+            f"/api/discussions/models/{model.id}/",
+            {"content": "Yes, with quantization.", "parent": root.id},
+        )
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        list_response = self.client.get(f"/api/discussions/models/{model.id}/")
+
+        self.assertEqual(list_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(list_response.json()), 1)
+        self.assertEqual(list_response.json()[0]["replies"][0]["content"], "Yes, with quantization.")

@@ -1,5 +1,5 @@
 from django.apps import apps
-from django.db import OperationalError, ProgrammingError
+from django.db import IntegrityError, OperationalError, ProgrammingError
 
 
 def _target_details(target):
@@ -11,6 +11,10 @@ def _target_details(target):
         str(target.pk),
         str(target)[:255],
     )
+
+
+def _safe_str(value):
+    return "" if value is None else str(value)
 
 
 def log_event(
@@ -39,11 +43,11 @@ def log_event(
     status_code = metadata.get("status_code")
 
     if request is not None:
-        request_id = getattr(request, "request_id", "")
-        request_method = request.method
-        request_path = request.get_full_path()
+        request_id = _safe_str(getattr(request, "request_id", ""))
+        request_method = _safe_str(getattr(request, "method", ""))
+        request_path = _safe_str(request.get_full_path() if hasattr(request, "get_full_path") else "")
         forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")[0].strip()
-        remote_addr = forwarded_for or request.META.get("REMOTE_ADDR", "")
+        remote_addr = _safe_str(forwarded_for or request.META.get("REMOTE_ADDR", ""))
 
     try:
         return EventLog.objects.create(
@@ -62,6 +66,5 @@ def log_event(
             target_repr=target_repr,
             metadata=metadata,
         )
-    except (OperationalError, ProgrammingError):
+    except (IntegrityError, OperationalError, ProgrammingError):
         return None
-

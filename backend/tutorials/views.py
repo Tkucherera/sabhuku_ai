@@ -8,6 +8,7 @@ from urllib.parse import quote
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.http import Http404, HttpResponse
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.templatetags.static import static
 from django.urls import reverse
@@ -173,16 +174,42 @@ class TutorialViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = Tutorial.objects.select_related("author", "author__profile").prefetch_related("tags").all()
-        if self.action in {"list", "retrieve"} and not self.request.user.is_authenticated:
-            return queryset.filter(status=Tutorial.STATUS_PUBLISHED)
-        if self.action in {"list", "retrieve"} and self.request.query_params.get("mine") == "true":
-            return queryset.filter(author=self.request.user)
         if self.action in {"update", "partial_update", "destroy"}:
             return queryset.filter(author=self.request.user)
+
+        params = self.request.query_params
+        query = (params.get("q") or "").strip()
+        tag = (params.get("tag") or "").strip()
+        author = (params.get("author") or "").strip()
+        mine = (params.get("mine") or "").strip().lower() in {"true", "1", "yes"}
+        status_filter = (params.get("status") or "").strip().lower()
+
+        if self.action in {"list", "retrieve"} and mine and self.request.user.is_authenticated:
+            queryset = queryset.filter(author=self.request.user)
+        elif self.action in {"list", "retrieve"} and not self.request.user.is_authenticated:
+            queryset = queryset.filter(status=Tutorial.STATUS_PUBLISHED)
+        elif self.action in {"list", "retrieve"}:
+            if status_filter in {Tutorial.STATUS_DRAFT, Tutorial.STATUS_PUBLISHED, Tutorial.STATUS_ARCHIVED}:
+                queryset = queryset.filter(status=status_filter, author=self.request.user)
+            else:
+                queryset = queryset.filter(Q(status=Tutorial.STATUS_PUBLISHED) | Q(author=self.request.user))
+
+        if query:
+            queryset = queryset.filter(
+                Q(title__icontains=query)
+                | Q(excerpt__icontains=query)
+                | Q(body_markdown__icontains=query)
+                | Q(seo_keywords__icontains=query)
+                | Q(tags__name__icontains=query)
+            ).distinct()
+        if tag:
+            queryset = queryset.filter(Q(tags__slug__iexact=tag) | Q(tags__name__iexact=tag)).distinct()
+        if author:
+            queryset = queryset.filter(author__profile__public_username__iexact=author)
         return queryset
 
     def get_permissions(self):
-        if self.action in {"create", "update", "partial_update", "destroy", "my_articles", "upload_url"}:
+        if self.action in {"create", "update", "partial_update", "destroy", "my_articles", "upload_url", "upload_image"}:
             return [permissions.IsAuthenticated()]
         return super().get_permissions()
 

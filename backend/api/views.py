@@ -6,7 +6,7 @@ from urllib.parse import quote
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.http import Http404
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.utils import timezone
 from rest_framework import generics, permissions, serializers, viewsets
 from rest_framework.decorators import action
@@ -17,6 +17,8 @@ from google.cloud import storage
 
 from .models import Model, Dataset, UserProfile
 from .serializers import ModelSerializer, DatasetSerializer, UserProfileSerializer
+from tutorials.models import Tutorial
+from tutorials.serializers import TutorialSerializer
 
 
 class SignedUploadRequestSerializer(serializers.Serializer):
@@ -71,9 +73,36 @@ def _build_signed_download(file_path):
 
 
 class ModelViewSet(viewsets.ModelViewSet):
-    queryset = Model.objects.select_related("author").all().order_by("-id")
     serializer_class = ModelSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        queryset = Model.objects.select_related("author", "author__profile").all().order_by("-id")
+        params = self.request.query_params
+        query = (params.get("q") or "").strip()
+        category = (params.get("category") or "").strip()
+        author = (params.get("author") or "").strip()
+        tag = (params.get("tag") or "").strip()
+        trending = (params.get("trending") or "").strip().lower()
+
+        if query:
+            queryset = queryset.filter(
+                Q(name__icontains=query)
+                | Q(description__icontains=query)
+                | Q(category__icontains=query)
+                | Q(tags__icontains=query)
+            )
+        if category:
+            queryset = queryset.filter(category__iexact=category)
+        if author:
+            queryset = queryset.filter(
+                Q(author__profile__public_username__iexact=author) | Q(author__username__iexact=author)
+            )
+        if tag:
+            queryset = queryset.filter(tags__icontains=tag)
+        if trending in {"true", "1", "yes"}:
+            queryset = queryset.filter(trending=True)
+        return queryset
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -102,12 +131,48 @@ class ModelViewSet(viewsets.ModelViewSet):
 
 
 class DatasetViewSet(viewsets.ModelViewSet):
-    queryset = Dataset.objects.select_related("author", "author__profile").prefetch_related(
-        "dataset_discussions__user",
-        "dataset_discussions__user__profile",
-    ).all().order_by("-id")
     serializer_class = DatasetSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        queryset = Dataset.objects.select_related("author", "author__profile").prefetch_related(
+            "dataset_discussions__user",
+            "dataset_discussions__user__profile",
+        ).all().order_by("-id")
+        user = self.request.user
+        params = self.request.query_params
+        query = (params.get("q") or "").strip()
+        category = (params.get("category") or "").strip()
+        author = (params.get("author") or "").strip()
+        tag = (params.get("tag") or "").strip()
+        mine = (params.get("mine") or "").strip().lower() in {"true", "1", "yes"}
+
+        if mine and user.is_authenticated:
+            queryset = queryset.filter(author=user)
+        elif user.is_authenticated:
+            queryset = queryset.filter(Q(is_public=True) | Q(author=user))
+        else:
+            queryset = queryset.filter(is_public=True)
+
+        if query:
+            queryset = queryset.filter(
+                Q(name__icontains=query)
+                | Q(subtitle__icontains=query)
+                | Q(description__icontains=query)
+                | Q(category__icontains=query)
+                | Q(tags__icontains=query)
+                | Q(authors__icontains=query)
+                | Q(source__icontains=query)
+            )
+        if category:
+            queryset = queryset.filter(category__iexact=category)
+        if author:
+            queryset = queryset.filter(
+                Q(author__profile__public_username__iexact=author) | Q(author__username__iexact=author)
+            )
+        if tag:
+            queryset = queryset.filter(tags__icontains=tag)
+        return queryset
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -218,5 +283,126 @@ class DashboardView(APIView):
                 "popular_datasets": DatasetSerializer(popular_datasets, many=True).data,
                 "recent_user_models": ModelSerializer(user_models[:3], many=True).data,
                 "recent_user_datasets": DatasetSerializer(user_datasets[:3], many=True).data,
+            }
+        )
+
+
+class CommunityOverviewView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        published_tutorials = Tutorial.objects.filter(status=Tutorial.STATUS_PUBLISHED)
+        public_datasets = Dataset.objects.select_related("author", "author__profile").filter(is_public=True)
+        models = Model.objects.select_related("author", "author__profile").all()
+
+        return Response(
+            {
+                "stats": {
+                    "members": User.objects.count(),
+                    "models": models.count(),
+                    "datasets": public_datasets.count(),
+                    "tutorials": published_tutorials.count(),
+                },
+                "featured_models": ModelSerializer(
+                    models.order_by("-trending", "-downloads", "-likes", "-id")[:5], many=True
+                ).data,
+                "featured_datasets": DatasetSerializer(
+                    public_datasets.order_by("-downloads", "-id")[:5], many=True
+                ).data,
+                "featured_tutorials": TutorialSerializer(
+                    published_tutorials.select_related("author", "author__profile").prefetch_related("tags").order_by(
+                        "-published_at", "-updated_at", "-id"
+                    )[:5],
+                    many=True,
+                ).data,
+            }
+        )
+
+
+class CommunitySearchView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        query = (request.query_params.get("q") or "").strip()
+        search_type = (request.query_params.get("type") or "all").strip().lower()
+        try:
+            limit = max(1, min(int(request.query_params.get("limit", 5)), 20))
+        except (TypeError, ValueError):
+            limit = 5
+
+        if not query:
+            return Response(
+                {
+                    "query": "",
+                    "results": {"models": [], "datasets": [], "tutorials": []},
+                }
+            )
+
+        include_models = search_type in {"all", "models"}
+        include_datasets = search_type in {"all", "datasets"}
+        include_tutorials = search_type in {"all", "tutorials"}
+
+        model_results = []
+        dataset_results = []
+        tutorial_results = []
+
+        if include_models:
+            model_results = ModelSerializer(
+                Model.objects.select_related("author", "author__profile")
+                .filter(
+                    Q(name__icontains=query)
+                    | Q(description__icontains=query)
+                    | Q(category__icontains=query)
+                    | Q(tags__icontains=query)
+                )
+                .order_by("-trending", "-downloads", "-likes", "-id")[:limit],
+                many=True,
+            ).data
+
+        if include_datasets:
+            dataset_results = DatasetSerializer(
+                Dataset.objects.select_related("author", "author__profile")
+                .filter(is_public=True)
+                .filter(
+                    Q(name__icontains=query)
+                    | Q(subtitle__icontains=query)
+                    | Q(description__icontains=query)
+                    | Q(category__icontains=query)
+                    | Q(tags__icontains=query)
+                    | Q(authors__icontains=query)
+                    | Q(source__icontains=query)
+                )
+                .order_by("-downloads", "-id")[:limit],
+                many=True,
+                context={"request": request},
+            ).data
+
+        if include_tutorials:
+            tutorial_results = TutorialSerializer(
+                Tutorial.objects.select_related("author", "author__profile")
+                .prefetch_related("tags")
+                .filter(status=Tutorial.STATUS_PUBLISHED)
+                .filter(
+                    Q(title__icontains=query)
+                    | Q(excerpt__icontains=query)
+                    | Q(body_markdown__icontains=query)
+                    | Q(seo_keywords__icontains=query)
+                    | Q(tags__name__icontains=query)
+                )
+                .distinct()
+                .order_by("-published_at", "-updated_at", "-id")[:limit],
+                many=True,
+            ).data
+
+        return Response(
+            {
+                "query": query,
+                "type": search_type,
+                "limit": limit,
+                "results": {
+                    "models": model_results,
+                    "datasets": dataset_results,
+                    "tutorials": tutorial_results,
+                },
             }
         )
