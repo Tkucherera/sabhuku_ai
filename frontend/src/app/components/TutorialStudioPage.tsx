@@ -31,7 +31,7 @@ import { useAuth } from "./AuthContext";
 import {
   createTutorial,
   fetchTutorialBySlug,
-  uploadTutorialImage, // NEW — replaces requestTutorialImageUploadUrl + uploadTutorialImageToStorage
+  uploadTutorialImage, 
   updateTutorial,
 } from "../api/tutorialApi";
 import { TutorialPayload } from "../../types";
@@ -106,7 +106,7 @@ function htmlToMarkdown(html: string): string {
     .replace(/<li[^>]*>(.*?)<\/li>/gi, "- $1\n")
     .replace(/<\/?ul[^>]*>/gi, "\n")
     .replace(/<\/?ol[^>]*>/gi, "\n")
-    .replace(/<img[^>]*alt="([^"]*)"[^>]*src="([^"]*)"[^>]*\/?>/gi, "![$1]($2)\n")
+    .replace(/<img[^>]*?src="([^"]*)"[^>]*?(?:alt="([^"]*)")?[^>]*?\/?>/gi, "![$2]($1)\n")
     .replace(/<a[^>]*href="([^"]*)"[^>]*>(.*?)<\/a>/gi, "[$2]($1)")
     .replace(/<hr[^>]*\/?>/gi, "\n---\n\n")
     .replace(/<br[^>]*\/?>/gi, "\n")
@@ -256,6 +256,14 @@ export function TutorialStudioPage() {
   const [uploadingCoverImage, setUploadingCoverImage] = useState(false);
   const [uploadingThumbnailImage, setUploadingThumbnailImage] = useState(false);
 
+  const lastSavedAt = useRef<Date | null>(null);
+  const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Always holds the latest form + editor state for the timer callback
+  const latestFormRef = useRef(form);
+  useEffect(() => { latestFormRef.current = form; }, [form]);
+
   // Rich vs Markdown mode toggle
   const [editorMode, setEditorMode] = useState<EditorMode>("rich");
   // Markdown tab (write/preview) — only shown in markdown mode
@@ -325,6 +333,65 @@ export function TutorialStudioPage() {
     void load();
     return () => { cancelled = true; };
   }, [slug, token, editor]);
+
+useEffect(() => {
+  // Don't autosave on initial load or if there's nothing worth saving
+  if (!form.title.trim() || !token) return;
+
+  if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+
+  setAutosaveStatus("idle");
+
+  autosaveTimer.current = setTimeout(async () => {
+    const current = latestFormRef.current;
+    const md = editorMode === "rich" && editor
+      ? htmlToMarkdown(editor.getHTML())
+      : current.body_markdown;
+
+    const payload: TutorialPayload = {
+      title: current.title.trim(),
+      slug: current.slug.trim(),
+      excerpt: current.excerpt.trim(),
+      body_markdown: md,
+      status: current.status === "published" ? "published" : "draft",
+      seo_title: current.seo_title.trim(),
+      meta_description: current.meta_description.trim(),
+      seo_keywords: current.seo_keywords.trim(),
+      cover_image_url: current.cover_image_url.trim(),
+      cover_image_path: current.cover_image_path.trim(),
+      cover_image_alt: current.cover_image_alt.trim(),
+      thumbnail_image_url: current.thumbnail_image_url.trim(),
+      thumbnail_image_path: current.thumbnail_image_path.trim(),
+      tags: current.tag_input.split(",").map((t) => t.trim()).filter(Boolean),
+    };
+
+    if (!payload.title || !payload.body_markdown.trim()) return;
+
+    setAutosaveStatus("saving");
+    try {
+      const saved = slug
+        ? await updateTutorial(token, slug, payload)
+        : await createTutorial(token, payload);
+
+      lastSavedAt.current = new Date();
+      setAutosaveStatus("saved");
+
+      // If this was a new tutorial, update the URL without a full navigation
+      if (!slug && saved.slug) {
+        window.history.replaceState(null, "", `/tutorials/studio/${saved.slug}`);
+      }
+
+      // Fade back to idle after 3s
+      setTimeout(() => setAutosaveStatus("idle"), 3000);
+    } catch {
+      setAutosaveStatus("idle"); // fail silently — manual save still works
+    }
+  }, 5000); // 5 second debounce
+
+  return () => {
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+  };
+}, [form, editorMode]); // fires whenever form content changes
 
   const previewHtml = useMemo(() => renderPreview(form.body_markdown), [form.body_markdown]);
 
@@ -492,10 +559,26 @@ export function TutorialStudioPage() {
               {slug ? "Edit tutorial" : "Write a tutorial"}
             </h1>
             <p className="mt-2 max-w-3xl text-slate-600">
-              Create SEO-friendly community tutorials with rich text or markdown, images, code samples, metadata, and publish controls.
+              Create community tutorials with rich text or markdown, images, code samples, metadata, and publish controls.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
+              <div className="flex items-center gap-2 text-sm text-slate-400">
+              {autosaveStatus === "saving" && (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Saving…</span>
+                </>
+              )}
+              {autosaveStatus === "saved" && (
+                <>
+                  <Save className="h-3.5 w-3.5 text-emerald-500" />
+                  <span className="text-emerald-600">
+                    Saved {lastSavedAt.current?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => void handleSave("draft")}

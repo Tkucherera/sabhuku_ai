@@ -49,6 +49,7 @@ export async function requestTutorialImageUploadUrl(token: string, filename: str
   );
 }
 
+
 export async function uploadTutorialImageToStorage(uploadUrl: string, file: File, contentType: string) {
   const response = await fetch(uploadUrl, {
     method: "PUT",
