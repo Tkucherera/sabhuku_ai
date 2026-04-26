@@ -1,7 +1,7 @@
 from django.http import Http404
 from rest_framework import generics, permissions
 
-from api.models import Dataset
+from api.models import Dataset, Model
 from tutorials.models import Tutorial
 
 from .models import Discussion
@@ -28,6 +28,13 @@ def _get_visible_tutorial(request, tutorial_id):
         return tutorial
 
     raise Http404
+
+
+def _get_visible_model(model_id):
+    model = Model.objects.select_related("author", "author__profile").filter(pk=model_id).first()
+    if not model:
+        raise Http404
+    return model
 
 
 class DatasetDiscussionListCreateView(generics.ListCreateAPIView):
@@ -76,3 +83,27 @@ class TutorialDiscussionListCreateView(generics.ListCreateAPIView):
     def perform_create(self, serializer):
         tutorial = self.get_tutorial()
         serializer.save(user=self.request.user, tutorial=tutorial)
+
+
+class ModelDiscussionListCreateView(generics.ListCreateAPIView):
+    serializer_class = DiscussionSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_model(self):
+        return _get_visible_model(self.kwargs["model_id"])
+
+    def get_queryset(self):
+        model = self.get_model()
+        return Discussion.objects.select_related("user", "user__profile").filter(
+            model=model,
+            parent__isnull=True,
+        )
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["model"] = self.get_model()
+        return context
+
+    def perform_create(self, serializer):
+        model = self.get_model()
+        serializer.save(user=self.request.user, model=model)

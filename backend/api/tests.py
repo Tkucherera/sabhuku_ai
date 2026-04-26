@@ -259,6 +259,41 @@ class DatasetUploadFlowTests(APITestCase):
         self.assertEqual(response.data["id"], dataset.id)
         self.assertEqual(response.data["author_public_username"], "dataset-owner")
 
+    def test_anonymous_dataset_list_hides_private_datasets(self):
+        Dataset.objects.create(
+            name="Public Data",
+            author=self.user,
+            description="Public release",
+            category="Tabular",
+            size="1 MB",
+            format=["csv"],
+            tags=["public"],
+            updated="2026-04-08T00:00:00Z",
+            file_path="datasets/1/public.csv",
+            license="CC BY 4.0",
+            is_public=True,
+        )
+        Dataset.objects.create(
+            name="Private Data",
+            author=self.user,
+            description="Private release",
+            category="Tabular",
+            size="1 MB",
+            format=["csv"],
+            tags=["private"],
+            updated="2026-04-08T00:00:00Z",
+            file_path="datasets/1/private.csv",
+            license="CC BY 4.0",
+            is_public=False,
+        )
+        self.client.force_authenticate(user=None)
+
+        response = self.client.get("/api/datasets/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["name"], "Public Data")
+
 
 class ProfileTests(APITestCase):
     def setUp(self):
@@ -502,3 +537,53 @@ class DashboardTests(APITestCase):
         self.assertEqual(response.data["stats"]["community_datasets"], 1)
         self.assertEqual(len(response.data["trending_models"]), 1)
         self.assertEqual(len(response.data["popular_datasets"]), 1)
+
+
+class CommunityApiTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="community@example.com", password="secret123")
+        self.user.profile.public_username = "community-user"
+        self.user.profile.save(update_fields=["public_username"])
+
+        Model.objects.create(
+            name="Shona Assistant",
+            author=self.user,
+            description="Conversational model for local support",
+            category="NLP",
+            tags=["shona", "assistant"],
+            trending=True,
+            updated="2026-04-20T00:00:00Z",
+            file_path="models/1/shona-assistant.bin",
+            license="Custom",
+        )
+        Dataset.objects.create(
+            name="Harare Service Requests",
+            author=self.user,
+            description="Municipal issue tracking dataset",
+            category="Tabular",
+            size="24 MB",
+            format=["csv"],
+            tags=["harare", "civic"],
+            updated="2026-04-20T00:00:00Z",
+            file_path="datasets/1/harare.csv",
+            license="CC BY 4.0",
+            is_public=True,
+        )
+
+    def test_community_overview_returns_platform_summary(self):
+        response = self.client.get("/api/community/overview/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("stats", response.data)
+        self.assertIn("featured_models", response.data)
+        self.assertIn("featured_datasets", response.data)
+        self.assertIn("featured_tutorials", response.data)
+
+    def test_community_search_returns_matching_content(self):
+        response = self.client.get("/api/community/search/?q=Shona&type=models&limit=3")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["query"], "Shona")
+        self.assertEqual(response.data["type"], "models")
+        self.assertEqual(len(response.data["results"]["models"]), 1)
+        self.assertEqual(response.data["results"]["models"][0]["name"], "Shona Assistant")

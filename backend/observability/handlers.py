@@ -1,9 +1,13 @@
 import logging
 
 from django.apps import apps
-from django.db import OperationalError, ProgrammingError
+from django.db import IntegrityError, OperationalError, ProgrammingError
 
 from .context import get_request_context
+
+
+def _safe_str(value):
+    return "" if value is None else str(value)
 
 
 class RequestContextFilter(logging.Filter):
@@ -58,10 +62,10 @@ class DatabaseLogHandler(logging.Handler):
             traceback_text = record.stack_info
 
         metadata = {
-            "request_id": context.get("request_id", ""),
-            "request_method": context.get("request_method", ""),
-            "request_path": context.get("request_path", ""),
-            "remote_addr": context.get("remote_addr", ""),
+            "request_id": _safe_str(context.get("request_id", "")),
+            "request_method": _safe_str(context.get("request_method", "")),
+            "request_path": _safe_str(context.get("request_path", "")),
+            "remote_addr": _safe_str(context.get("remote_addr", "")),
             "user_id": context.get("user_id"),
             "status_code": context.get("status_code"),
         }
@@ -69,12 +73,12 @@ class DatabaseLogHandler(logging.Handler):
         try:
             ApplicationLog.objects.create(
                 severity=record.levelname.lower(),
-                logger_name=record.name[:255],
+                logger_name=_safe_str(record.name)[:255],
                 message=record.getMessage(),
                 traceback=traceback_text,
-                module=record.module,
-                function_name=record.funcName,
-                path_name=record.pathname,
+                module=_safe_str(getattr(record, "module", "")),
+                function_name=_safe_str(getattr(record, "funcName", "")),
+                path_name=_safe_str(getattr(record, "pathname", "")),
                 line_number=record.lineno,
                 process=record.process,
                 thread=record.thread,
@@ -86,5 +90,5 @@ class DatabaseLogHandler(logging.Handler):
                 user_id=metadata["user_id"],
                 metadata=metadata,
             )
-        except (OperationalError, ProgrammingError):
+        except (IntegrityError, OperationalError, ProgrammingError):
             return
