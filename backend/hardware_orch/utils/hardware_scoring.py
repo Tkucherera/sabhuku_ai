@@ -16,13 +16,19 @@ import logging
 import json
 import os
 
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", "providers", "gcp"))
+
 import dataclasses
 import math 
 from typing import Optional
 
+from providers.gcp.Instances import load_gcp_instances
+
 logging.basicConfig(level=logging.INFO)
 
 
+GCP_INSTANCES = load_gcp_instances()
 
 @dataclasses.dataclass(frozen=True)
 class InstanceSpec:
@@ -45,46 +51,16 @@ class InstanceSpec:
 # Full catalog — Yhis is for demonstration purposes only 
 # In real implementation will keep a database of available instances and their specs, and update it regularly (e.g. via cloud provider APIs)
 INSTANCE_CATALOG: list[InstanceSpec] = [
- 
+    *GCP_INSTANCES,
     #  Local / on-prem 
     InstanceSpec("local","local-cpu-only",    None,  0, 0,  0,  16, 32,   0,    0,    0.00, None,   "any",  "Generic workstation CPU"),
     InstanceSpec("local","local-rtx3090",     "RTX3090",1,24, 24, 12, 64,  936,  35.6, 0.00, None,   "ampere","Consumer GPU, no ECC"),
     InstanceSpec("local","local-rtx4090",     "RTX4090",1,24, 24, 16, 64, 1008,  82.6, 0.00, None,   "ada",   "Fastest consumer GPU"),
     InstanceSpec("local","local-a100-80g",    "A100-80G",1,80, 80, 32,128, 2000, 312,  0.00, None,   "ampere","Data-centre A100"),
  
-    #  GCP
-    # CPU-only
-    InstanceSpec("gcp",  "n2-standard-8",     None,  0, 0,  0,  8,  32,   0,    0,    0.38, 0.11,   "any",  "General-purpose CPU"),
-    InstanceSpec("gcp",  "c2-standard-16",    None,  0, 0,  0, 16,  64,   0,    0,    0.76, 0.23,   "any",  "Compute-optimised CPU"),
- 
-    # T4 — Turing, 16 GB
-    InstanceSpec("gcp",  "n1-standard-4-t4",  "T4",  1, 16, 16,  4,  15, 320,   65,   0.35, 0.11,   "turing","Cheapest GCP GPU"),
-    InstanceSpec("gcp",  "n1-standard-8-t4x2","T4",  2, 16, 32,  8,  30, 320,   65,   0.70, 0.21,   "turing","Dual T4"),
- 
-    # L4 — Ada, 24 GB  (g2 family)
-    InstanceSpec("gcp",  "g2-standard-4",     "L4",  1, 24, 24,  4,  16, 864,  121.5, 0.70, 0.21,   "ada",  "Best perf/$ for 7B models"),
-    InstanceSpec("gcp",  "g2-standard-8",     "L4",  1, 24, 24,  8,  32, 864,  121.5, 0.84, 0.25,   "ada",  "L4 with more vCPUs"),
-    InstanceSpec("gcp",  "g2-standard-24",    "L4",  2, 24, 48, 24,  96, 864,  121.5, 1.68, 0.50,   "ada",  "Dual L4"),
-    InstanceSpec("gcp",  "g2-standard-48",    "L4",  4, 24, 96, 48, 192, 864,  121.5, 3.36, 1.01,   "ada",  "Quad L4"),
- 
-    # A100 40 GB  (a2 family)
-    InstanceSpec("gcp",  "a2-highgpu-1g",     "A100-40G",1,40, 40, 12,  85,1555,  312,   3.67, 1.10,   "ampere","13–30B range"),
-    InstanceSpec("gcp",  "a2-highgpu-2g",     "A100-40G",2,40, 80, 24, 170,1555,  312,   7.35, 2.20,   "ampere","Dual A100-40G"),
-    InstanceSpec("gcp",  "a2-highgpu-4g",     "A100-40G",4,40,160, 48, 340,1555,  312,  14.69, 4.41,   "ampere","Quad A100-40G"),
-    InstanceSpec("gcp",  "a2-highgpu-8g",     "A100-40G",8,40,320, 96, 680,1555,  312,  29.39, 8.82,   "ampere","8× A100-40G"),
- 
-    # A100 80 GB  (a2-ultra family)
-    InstanceSpec("gcp",  "a2-ultragpu-1g",    "A100-80G",1,80, 80, 12, 170,2000,  312,   5.07, 1.52,   "ampere","Best single-GPU for 65B"),
-    InstanceSpec("gcp",  "a2-ultragpu-2g",    "A100-80G",2,80,160, 24, 340,2000,  312,  10.14, 3.04,   "ampere","Dual A100-80G"),
-    InstanceSpec("gcp",  "a2-ultragpu-4g",    "A100-80G",4,80,320, 48, 680,2000,  312,  20.29, 6.09,   "ampere","Quad A100-80G"),
-    InstanceSpec("gcp",  "a2-ultragpu-8g",    "A100-80G",8,80,640, 96,1360,2000,  312,  40.57,12.17,   "ampere","8× A100-80G (405B+)"),
- 
-    # H100 80 GB  (a3 family) — newer, ~3× A100 throughput
-    InstanceSpec("gcp",  "a3-highgpu-8g",     "H100-80G",8,80,640, 208,1872,3350,  989,  32.77, None,   "hopper","Fastest GCP GPU"),
- 
+   
     # AWS 
-    # CPU-only
-    InstanceSpec("aws",  "c5.4xlarge",        None,  0, 0,  0, 16,  32,   0,    0,    0.68, 0.20,   "any",  "Compute-optimised CPU"),
+    # CPU-only 
     InstanceSpec("aws",  "m5.4xlarge",        None,  0, 0,  0, 16,  64,   0,    0,    0.77, 0.23,   "any",  "General-purpose CPU"),
  
     # T4 — g4dn family
@@ -109,6 +85,8 @@ INSTANCE_CATALOG: list[InstanceSpec] = [
     InstanceSpec("aws",  "inf2.xlarge",       "Inferentia2",1,32,32,4, 16,  820,  190,   0.76, 0.23,  "any",  "Requires torch-neuronx compile"),
     InstanceSpec("aws",  "inf2.8xlarge",      "Inferentia2",1,32,32,32,128,  820,  190,   1.97, 0.59,  "any",  "Requires torch-neuronx compile"),
 ]
+
+
 
 @dataclasses.dataclass
 class ScoredInstance:
