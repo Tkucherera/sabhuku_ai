@@ -8,7 +8,8 @@ from urllib.parse import quote
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.http import Http404, HttpResponse
-from django.db.models import Q
+from django.core.paginator import Paginator
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.templatetags.static import static
 from django.urls import reverse
@@ -18,12 +19,13 @@ from rest_framework import generics, permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.generics import RetrieveAPIView
 
 from google.cloud import storage
 from discussions.models import Discussion
 
 from .models import Tutorial, TutorialTag
-from .serializers import TutorialSerializer, TutorialWriteSerializer
+from .serializers import TutorialSerializer, TutorialWriteSerializer, TutorialAudioSerializer
 
 
 md = MarkdownIt("commonmark", {"html": False, "linkify": True, "typographer": True}).enable("table")
@@ -168,6 +170,10 @@ class TutorialPermission(permissions.BasePermission):
         return request.user.is_authenticated and obj.author_id == request.user.id
 
 
+class TutorialAudioStatusView(RetrieveAPIView):
+    queryset = Tutorial.objects.all()
+    serializer_class = TutorialAudioSerializer
+
 class TutorialViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
     lookup_field = "slug"
@@ -285,9 +291,6 @@ class TutorialViewSet(viewsets.ModelViewSet):
         bucket = client.bucket(settings.GS_MEDIA_BUCKET_NAME)
         blob = bucket.blob(blob_path)
         blob.upload_from_file(file, content_type=content_type)
-        # No ACL needed if bucket is public, otherwise:
-        # blob.acl.all().grant_read()
-        # blob.acl.save()
 
         file_url = f"https://storage.googleapis.com/{settings.GS_MEDIA_BUCKET_NAME}/{quote(blob_path, safe='/')}"
         return Response({
@@ -299,15 +302,34 @@ class TutorialViewSet(viewsets.ModelViewSet):
 def tutorial_index(request):
     tutorials = Tutorial.objects.filter(status=Tutorial.STATUS_PUBLISHED).select_related("author", "author__profile").prefetch_related("tags")
     featured = tutorials.first()
-    latest = tutorials[1:13] if featured else tutorials[:12]
+    latest = tutorials.exclude(pk=featured.pk) if featured else tutorials
+    paginator = Paginator(latest, 12)
+    page_obj = paginator.get_page(request.GET.get("page"))
     popular_tags = TutorialTag.objects.filter(tutorials__status=Tutorial.STATUS_PUBLISHED).distinct()[:10]
+    top_authors = (
+        User.objects.select_related("profile")
+        .filter(tutorials__status=Tutorial.STATUS_PUBLISHED)
+        .exclude(profile__public_username="")
+        .annotate(post_count=Count("tutorials", filter=Q(tutorials__status=Tutorial.STATUS_PUBLISHED)))
+        .filter(post_count__gt=0)
+        .order_by("-post_count", "username")[:5]
+    )
     return render(
         request,
         "tutorials/index.html",
         {
+            "posts": page_obj.object_list,
+            "featured_post": featured,
             "featured_tutorial": featured,
-            "tutorials": latest,
+            "tutorials": page_obj.object_list,
+            "page_obj": page_obj,
+            "total_count": tutorials.count(),
+            "author_count": tutorials.values("author_id").distinct().count(),
+            "categories": [],
+            "active_category": "",
             "popular_tags": popular_tags,
+            "top_authors": top_authors,
+            "fallback_image": static("tutorials/images/tutorial-fallback.svg"),
             "page_title": "Community Tutorials",
             "meta_description": "Expert AI tutorials, practical guides, and community knowledge from Sabhuku AI.",
             "canonical_url": f"{current_site_url()}{reverse('tutorials:index')}",

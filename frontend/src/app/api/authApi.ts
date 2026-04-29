@@ -53,6 +53,18 @@ export async function loginUser({
   return data as { access: string; refresh?: string };
 }
 
+export async function refreshAuthToken(refresh: string) {
+  const res = await fetch("/api/auth/token/refresh/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh }),
+  });
+
+  if (!res.ok) throw await res.json().catch(() => ({ message: "Session refresh failed." }));
+  const data = await res.json();
+  return data as { access: string; refresh?: string };
+}
+
 export async function requestPasswordReset({
   email,
 }: {

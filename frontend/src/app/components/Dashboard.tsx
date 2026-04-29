@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { TrendingUp, Users, Star, Clock, ArrowRight, Database, Box } from "lucide-react";
+import { TrendingUp, Users, Star, Clock, ArrowRight, Database, Box, FilePenLine } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 
 import { PlatformLayout } from "./PlatformLayout";
@@ -349,6 +349,15 @@ export function Dashboard() {
                   </Link>
                   <Link to="/profile" className="block w-full text-left px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 font-medium">
                     + Add Dataset
+                  </Link>
+                  <Link to="/tutorials/studio/new" className="block w-full text-left px-4 py-3 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 font-medium">
+                    <span className="inline-flex items-center gap-2">
+                      <FilePenLine className="h-4 w-4" />
+                      Write Tutorial
+                    </span>
+                  </Link>
+                  <Link to="/learning?status=draft" className="block w-full text-left px-4 py-3 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 font-medium">
+                    View My Drafts
                   </Link>
                   <Link to="/datasets" className="block w-full text-left px-4 py-3 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 font-medium">
                     Browse Community Work

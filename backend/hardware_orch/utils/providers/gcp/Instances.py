@@ -4,7 +4,6 @@ from os import path
 from typing import Optional
 
 WORK_DIR = path.join(path.dirname(__file__))
-print(f"Loading GCP instance data from {WORK_DIR}...")
 
 PROVIDER = "gcp"
 

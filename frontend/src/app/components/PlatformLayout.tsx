@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
-import { Brain, Home, Database, Box, BookOpen, Search, Bell } from "lucide-react";
+import { Brain, Home, Database, Box, BookOpen } from "lucide-react";
 
 import { getProfile } from "../api/authApi";
 import { useAuth } from "./AuthContext";
@@ -109,20 +109,6 @@ export function PlatformLayout({ children }: PlatformLayoutProps) {
             </div>
 
             <div className="flex items-center gap-4">
-              <div className="relative hidden md:block">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search models, datasets..."
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
-                />
-              </div>
-
-              <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
-
               <Link to="/profile" className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg">
                 <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-medium">
                   {profile?.avatar_url ? (

@@ -23,7 +23,7 @@ import dataclasses
 import math 
 from typing import Optional
 
-from providers.gcp.Instances import load_gcp_instances
+from .providers.gcp.Instances import load_gcp_instances
 
 logging.basicConfig(level=logging.INFO)
 
