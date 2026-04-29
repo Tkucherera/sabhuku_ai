@@ -8,10 +8,9 @@ from .views import _build_blob_path
 
 
 def generate_audio_bytes(text: str) -> bytes:
-    """
-    Will use qwen tts
-    """
-    return 
+    from .utils.text_to_speach import generate_audio_bytes as _generate
+    return _generate(text, mode="essay")
+    
 
 
 def upload_to_gcs(audio_bytes: bytes, destination_blob_name: str) -> str:

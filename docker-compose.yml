@@ -10,6 +10,20 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   backend:
     build: ./backend
@@ -19,15 +33,17 @@ services:
       SECRET_KEY: ${SECRET_KEY:-your-secret-key}
       DEBUG: ${DEBUG:-True}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-*}
-      DB_NAME: ${DB_NAME:-sa}
-      DB_USER: ${DB_USER:-sabhuku}
+      DB_NAME: ${DB_NAME:-sabhuku}
+      DB_USER: ${DB_USER:-sabhukuUser}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_HOST: ${DB_HOST:-db}
       DB_PORT: ${DB_PORT:-5432}
       GS_BUCKET_NAME: ${GS_BUCKET_NAME}
       GS_UPLOAD_URL_EXPIRATION_MINUTES: ${GS_UPLOAD_URL_EXPIRATION_MINUTES:-15}
       GS_DOWNLOAD_URL_EXPIRATION_HOURS: ${GS_DOWNLOAD_URL_EXPIRATION_HOURS:-1}
-      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/credentials/gcs-key.json
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
       PYTHONUNBUFFERED: "1"
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       LOG_DB_LEVEL: ${LOG_DB_LEVEL:-WARNING}
@@ -35,27 +51,58 @@ services:
       - ${GOOGLE_APPLICATION_CREDENTIALS_HOST}:/app/credentials/gcs-key.json:ro
       - ./backend/hardware_orch/test_models/:/app/models
     depends_on:
-       - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+
+  celery:
+    build: ./backend 
+    command: celery -A backend worker --loglevel=info --concurrency=2
+    env_file:
+      - ./.env
+    environment:
+      SECRET_KEY: ${SECRET_KEY:-your-secret-key}
+      DEBUG: ${DEBUG:-True}
+      DB_NAME: ${DB_NAME:-sabhuku}
+      DB_USER: ${DB_USER:-sabhukuUser}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-5432}
+      GS_BUCKET_NAME: ${GS_BUCKET_NAME}
+      GOOGLE_APPLICATION_CREDENTIALS: /app/credentials/gcs-key.json
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      PYTHONUNBUFFERED: "1"
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS_HOST}:/app/credentials/gcs-key.json:ro
+      - ./backend/hardware_orch/test_models/:/app/models  # TTS models need this too
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: always
 
   frontend:
     build: ./frontend
     volumes:
-      - frontend_build:/dist  # writes build here
+      - frontend_build:/dist
 
   nginx:
-      build: ./nginx
-      ports:
-        - "80:80"
-      volumes:
-        - frontend_build:/usr/share/nginx/html
-      depends_on:
-        frontend:
-          condition: service_completed_successfully  # waits for frontend to finish
-        backend:
-          condition: service_started
-      restart: always
+    build: ./nginx
+    ports:
+      - "80:80"
+    volumes:
+      - frontend_build:/usr/share/nginx/html
+    depends_on:
+      frontend:
+        condition: service_completed_successfully
+      backend:
+        condition: service_started
+    restart: always
 
 volumes:
   postgres_data:
-  frontend_build:  # shared between frontend and nginx
+  frontend_build:

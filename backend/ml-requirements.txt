@@ -1,11 +1,11 @@
-accelerate==1.13.0
+accelerate
 cuda-bindings==13.2.0
 cuda-pathfinder==1.5.3
 cuda-toolkit==13.0.2
 filelock==3.28.0
 fsspec==2026.3.0
 hf-xet==1.4.3
-huggingface_hub==1.11.0
+huggingface_hub
 ml_dtypes==0.5.4 
 mpmath==1.3.0   
 networkx==3.6.1
@@ -26,10 +26,11 @@ nvidia-nvjitlink==13.0.88
 nvidia-nvshmem-cu13==3.4.5
 nvidia-nvtx==13.0.85
 onnx==1.21.0
+qwen-tts
 safetensors==0.7.0
 sympy==1.14.0
 tqdm==4.67.3
-transformers==5.5.4
+transformers
 triton==3.6.0
 tokenizers==0.22.2
 torch==2.11.0
