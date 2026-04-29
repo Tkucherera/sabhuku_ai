@@ -119,3 +119,53 @@ class TutorialWriteSerializer(serializers.ModelSerializer):
         tutorial.tags.set(tags)
         tutorial.auto_tags = tutorial.build_auto_tags()
         tutorial.save(update_fields=["auto_tags"])
+
+class TutorialListSerializer(serializers.ModelSerializer):
+    author_name = serializers.SerializerMethodField()
+    author_public_username = serializers.SerializerMethodField()
+    author_avatar_url = serializers.SerializerMethodField()
+    tags = TutorialTagSerializer(many=True, read_only=True)
+    public_tags = serializers.SerializerMethodField()
+    cover_image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Tutorial
+        fields = (
+            "id",
+            "title",
+            "slug",
+            "excerpt",
+            "read_time_minutes",
+            "published_at",
+            "author_name",
+            "author_public_username",
+            "author_avatar_url",
+            "tags",
+            "public_tags",
+            "cover_image",
+        )
+
+    def get_author_name(self, obj):
+        return obj.author.get_full_name() or obj.author.username
+
+    def get_author_public_username(self, obj):
+        profile = getattr(obj.author, "profile", None)
+        return getattr(profile, "public_username", obj.author.username)
+
+    def get_author_avatar_url(self, obj):
+        profile = getattr(obj.author, "profile", None)
+        return getattr(profile, "avatar_url", "")
+
+    def get_public_tags(self, obj):
+        return obj.public_tags
+
+    def get_cover_image(self, obj):
+        return obj.cover_storage_url
+    
+
+class TutorialAudioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tutorial
+        fields = ["id", "title", "audio_url", "audio_status"]
+        read_only_fields = fields
+        

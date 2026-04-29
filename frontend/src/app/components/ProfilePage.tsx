@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { PlatformLayout } from "./PlatformLayout";
-import { Mail, MapPin, Calendar, Settings, LogOut, Save, X, Upload, Plus, Trash2, ExternalLink, Box, Database, TrendingUp, Image as ImageIcon, Loader2, AtSign } from "lucide-react";
+import { Mail, MapPin, Calendar, Settings, LogOut, Save, X, Upload, Plus, Trash2, ExternalLink, Box, Database, TrendingUp, Image as ImageIcon, Loader2, AtSign, FilePenLine } from "lucide-react";
 import { Link, useNavigate } from "react-router";
 import { useAuth } from "./AuthContext";
 import { getProfile, requestProfileImageUploadUrl, updateProfile, uploadProfileImageToStorage, ProfileData } from "../api/authApi";
@@ -493,6 +493,27 @@ export function ProfilePage() {
               <div className="text-xs text-gray-500 mt-0.5">{s.label}</div>
             </div>
           ))}
+        </div>
+
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm mb-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Quick Actions</h2>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <button onClick={() => setUploadTarget("model")} className="text-left px-4 py-3 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 font-medium">
+              + Upload Model
+            </button>
+            <button onClick={() => setUploadTarget("dataset")} className="text-left px-4 py-3 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 font-medium">
+              + Add Dataset
+            </button>
+            <Link to="/tutorials/studio/new" className="px-4 py-3 bg-indigo-50 text-indigo-700 rounded-lg hover:bg-indigo-100 font-medium">
+              <span className="inline-flex items-center gap-2">
+                <FilePenLine className="h-4 w-4" />
+                Write Tutorial
+              </span>
+            </Link>
+            <Link to="/learning?status=draft" className="px-4 py-3 bg-amber-50 text-amber-700 rounded-lg hover:bg-amber-100 font-medium">
+              View My Drafts
+            </Link>
+          </div>
         </div>
 
         {/* Tabs */}

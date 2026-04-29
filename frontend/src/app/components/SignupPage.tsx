@@ -36,7 +36,7 @@ export function SignupPage() {
     setError(null);
     try {
       const data = await registerUser({ firstName, lastName, publicUsername, email, password1, password2 });
-      login(data.access);
+      login(data.access, data.refresh);
       navigate("/profile");
     } catch (e: unknown) {
       if (typeof e === "object" && e !== null) {

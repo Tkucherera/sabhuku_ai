@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { PlatformLayout } from "./PlatformLayout";
 import { BookOpen, Clock, Award, Play, CheckCircle, FilePenLine, Loader2 } from "lucide-react";
 import { useAuth } from "./AuthContext";
@@ -8,8 +8,10 @@ import { Tutorial } from "../../types";
 
 export function LearningPage() {
   const { token } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [tutorials, setTutorials] = useState<Tutorial[]>([]);
   const [tutorialsLoading, setTutorialsLoading] = useState(true);
+  const activeStatus = searchParams.get("status") ?? "all";
 
   useEffect(() => {
     let cancelled = false;
@@ -152,6 +154,10 @@ export function LearningPage() {
     }
   };
 
+  const visibleTutorials = activeStatus === "all"
+    ? tutorials
+    : tutorials.filter((tutorial) => tutorial.status === activeStatus);
+
   return (
     <PlatformLayout>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -191,13 +197,29 @@ export function LearningPage() {
               <h2 className="text-2xl font-bold text-slate-950">Your tutorials</h2>
               <p className="mt-1 text-sm text-slate-500">Drafts and published articles tied to your account.</p>
             </div>
-            <Link
-              to="/tutorials/studio/new"
-              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-            >
-              <FilePenLine className="h-4 w-4" />
-              Open editor
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              {["all", "draft", "published"].map((status) => (
+                <button
+                  key={status}
+                  type="button"
+                  onClick={() => status === "all" ? setSearchParams({}) : setSearchParams({ status })}
+                  className={`rounded-xl px-3 py-2 text-sm font-semibold capitalize ${
+                    activeStatus === status
+                      ? "bg-slate-900 text-white"
+                      : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                >
+                  {status}
+                </button>
+              ))}
+              <Link
+                to="/tutorials/studio/new"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <FilePenLine className="h-4 w-4" />
+                Open editor
+              </Link>
+            </div>
           </div>
 
           {tutorialsLoading ? (
@@ -205,14 +227,14 @@ export function LearningPage() {
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading your tutorials...
             </div>
-          ) : tutorials.length === 0 ? (
+          ) : visibleTutorials.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center">
-              <h3 className="text-lg font-semibold text-slate-900">No tutorials yet</h3>
+              <h3 className="text-lg font-semibold text-slate-900">No {activeStatus === "all" ? "" : activeStatus} tutorials yet</h3>
               <p className="mt-2 text-sm text-slate-500">Start writing your first community tutorial and publish it into the SEO hub.</p>
             </div>
           ) : (
             <div className="grid gap-4">
-              {tutorials.map((tutorial) => (
+              {visibleTutorials.map((tutorial) => (
                 <div
                   key={tutorial.id}
                   className="flex flex-col gap-4 rounded-2xl border border-slate-200 p-4 lg:flex-row lg:items-center lg:justify-between"

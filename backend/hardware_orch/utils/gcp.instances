@@ -1,0 +1,2 @@
+NAME        ZONE           MACHINE_TYPE  PREEMPTIBLE  INTERNAL_IP  EXTERNAL_IP    STATUS
+sabhuku-vm  us-central1-a  e2-medium                  10.128.0.2   34.122.155.45  RUNNING

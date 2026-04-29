@@ -23,7 +23,7 @@ export function LoginPage() {
     setError(null);
     try {
       const data = await loginUser({ identifier, password });
-      login(data.access);
+      login(data.access, data.refresh);
       navigate(redirectTo, { replace: true });
     } catch (error: unknown) {
       if (typeof error === "object" && error !== null) {

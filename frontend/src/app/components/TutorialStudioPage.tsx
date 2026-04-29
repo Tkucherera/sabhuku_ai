@@ -14,7 +14,6 @@ import {
   Bold,
   Italic,
   Link as LinkIcon,
-  AlignLeft,
   Code,
   Minus,
   ListOrdered,
@@ -25,18 +24,24 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import TiptapImage from "@tiptap/extension-image";
 import TiptapLink from "@tiptap/extension-link";
+import { Extension } from "@tiptap/core";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { marked } from "marked";
 
 import { PlatformLayout } from "./PlatformLayout";
 import { useAuth } from "./AuthContext";
 import {
   createTutorial,
   fetchTutorialBySlug,
-  uploadTutorialImage, 
+  uploadTutorialImage,
   updateTutorial,
 } from "../api/tutorialApi";
 import { TutorialPayload } from "../../types";
 
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 type SaveMode = "draft" | "published";
 type EditorMode = "rich" | "markdown";
@@ -65,28 +70,56 @@ const initialForm: TutorialFormState = {
 };
 
 
+// ---------------------------------------------------------------------------
+// marked — configure once
+// ---------------------------------------------------------------------------
 
-function renderPreview(markdown: string) {
-  return markdown
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/```([\s\S]*?)```/g, (_, code) => `<pre><code>${code.trim()}</code></pre>`)
-    .replace(/^### (.*)$/gm, "<h3>$1</h3>")
-    .replace(/^## (.*)$/gm, "<h2>$1</h2>")
-    .replace(/^# (.*)$/gm, "<h1>$1</h1>")
-    .replace(/^> (.*)$/gm, "<blockquote>$1</blockquote>")
-    .replace(/^- (.*)$/gm, "<li>$1</li>")
-    .replace(/(<li>.*<\/li>)/gs, "<ul>$1</ul>")
-    .replace(/!\[(.*?)\]\((.*?)\)/g, '<img alt="$1" src="$2" />')
-    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>')
-    .replace(/\n\n/g, "</p><p>")
-    .replace(/^(?!<h|<ul|<pre|<blockquote|<img)(.+)$/gm, "<p>$1</p>")
-    .replace(/<p><\/p>/g, "");
-}
+marked.setOptions({ breaks: true, gfm: true });
+
 
 // ---------------------------------------------------------------------------
-// Tiptap HTML → rough Markdown (for storing body_markdown from rich editor)
+// renderPreview — for the markdown *preview tab only* (NOT used to load Tiptap)
+// Supports OS tab groups:
+//
+//   ```bash:mac
+//   brew install ffmpeg
+//   ```
+//   ```bash:windows
+//   choco install ffmpeg
+//   ```
+//   ```bash:linux
+//   sudo apt install ffmpeg
+//   ```
+// ---------------------------------------------------------------------------
+
+function renderPreview(markdown: string): string {
+  // 1. Replace OS tab groups before anything else
+  const osTabPattern =
+    /```(?:\w+):mac\n([\s\S]*?)```\n```(?:\w+):windows\n([\s\S]*?)```\n```(?:\w+):linux\n([\s\S]*?)```/g;
+
+  let processed = markdown.replace(
+    osTabPattern,
+    (_match, mac: string, windows: string, linux: string) => {
+      const encode = (s: string) =>
+        s.trim().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      return `<div class="os-tabs-block" data-mac="${encodeURIComponent(mac.trim())}" data-windows="${encodeURIComponent(windows.trim())}" data-linux="${encodeURIComponent(linux.trim())}">
+        <div class="os-tab-btns">
+          <button class="os-tab-btn active" data-os="mac">macOS</button>
+          <button class="os-tab-btn" data-os="windows">Windows</button>
+          <button class="os-tab-btn" data-os="linux">Linux</button>
+        </div>
+        <pre class="os-tab-content"><code>${encode(mac)}</code><button class="copy-code-btn" data-content="${encodeURIComponent(mac.trim())}">Copy</button></pre>
+      </div>`;
+    }
+  );
+
+  // 2. Run the rest through marked (handles all standard markdown cleanly)
+  return marked.parse(processed) as string;
+}
+
+
+// ---------------------------------------------------------------------------
+// htmlToMarkdown — Tiptap HTML → Markdown (for saving body_markdown)
 // ---------------------------------------------------------------------------
 
 function htmlToMarkdown(html: string): string {
@@ -100,8 +133,12 @@ function htmlToMarkdown(html: string): string {
     .replace(/<i[^>]*>(.*?)<\/i>/gi, "_$1_")
     .replace(/<code[^>]*>(.*?)<\/code>/gi, "`$1`")
     .replace(/<pre[^>]*><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, "```\n$1\n```\n\n")
-    .replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, (_, inner) =>
-      inner.trim().split("\n").map((l: string) => `> ${l}`).join("\n") + "\n\n"
+    .replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, (_, inner: string) =>
+      inner
+        .trim()
+        .split("\n")
+        .map((l) => `> ${l}`)
+        .join("\n") + "\n\n"
     )
     .replace(/<li[^>]*>(.*?)<\/li>/gi, "- $1\n")
     .replace(/<\/?ul[^>]*>/gi, "\n")
@@ -121,6 +158,44 @@ function htmlToMarkdown(html: string): string {
 }
 
 
+// ---------------------------------------------------------------------------
+// CodeBlockCopyPlugin — wires up copy buttons injected into <pre> elements
+// ---------------------------------------------------------------------------
+
+const CodeBlockCopyPlugin = Extension.create({
+  name: "codeBlockCopy",
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: new PluginKey("codeBlockCopy"),
+        props: {
+          handleDOMEvents: {
+            click(_view, event) {
+              const btn = (event.target as HTMLElement).closest(
+                ".copy-code-btn"
+              ) as HTMLElement | null;
+              if (!btn) return false;
+              const pre = btn.closest("pre");
+              const code = pre?.querySelector("code")?.innerText ?? "";
+              navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = "Copied!";
+                setTimeout(() => {
+                  btn.textContent = "Copy";
+                }, 2000);
+              });
+              return true;
+            },
+          },
+        },
+      }),
+    ];
+  },
+});
+
+
+// ---------------------------------------------------------------------------
+// Toolbar helpers
+// ---------------------------------------------------------------------------
 
 function ToolbarButton({
   onClick,
@@ -167,20 +242,36 @@ function RichToolbar({
   return (
     <div className="flex flex-wrap items-center gap-0.5 rounded-xl border border-slate-200 bg-slate-50 p-1.5">
       {/* Text style */}
-      <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} title="Bold">
+      <ToolbarButton
+        onClick={() => editor.chain().focus().toggleBold().run()}
+        active={editor.isActive("bold")}
+        title="Bold"
+      >
         <Bold className="h-3.5 w-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive("italic")} title="Italic">
+      <ToolbarButton
+        onClick={() => editor.chain().focus().toggleItalic().run()}
+        active={editor.isActive("italic")}
+        title="Italic"
+      >
         <Italic className="h-3.5 w-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleCode().run()} active={editor.isActive("code")} title="Inline code">
+      <ToolbarButton
+        onClick={() => editor.chain().focus().toggleCode().run()}
+        active={editor.isActive("code")}
+        title="Inline code"
+      >
         <Code className="h-3.5 w-3.5" />
       </ToolbarButton>
 
       <div className="mx-1 h-5 w-px bg-slate-200" />
 
       {/* Headings */}
-      <ToolbarButton onClick={() => editor.chain().focus().setParagraph().run()} active={editor.isActive("paragraph")} title="Paragraph">
+      <ToolbarButton
+        onClick={() => editor.chain().focus().setParagraph().run()}
+        active={editor.isActive("paragraph")}
+        title="Paragraph"
+      >
         <Pilcrow className="h-3.5 w-3.5" />
       </ToolbarButton>
       <ToolbarButton
@@ -201,16 +292,32 @@ function RichToolbar({
       <div className="mx-1 h-5 w-px bg-slate-200" />
 
       {/* Lists */}
-      <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive("bulletList")} title="Bullet list">
+      <ToolbarButton
+        onClick={() => editor.chain().focus().toggleBulletList().run()}
+        active={editor.isActive("bulletList")}
+        title="Bullet list"
+      >
         <List className="h-3.5 w-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive("orderedList")} title="Numbered list">
+      <ToolbarButton
+        onClick={() => editor.chain().focus().toggleOrderedList().run()}
+        active={editor.isActive("orderedList")}
+        title="Numbered list"
+      >
         <ListOrdered className="h-3.5 w-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive("blockquote")} title="Blockquote">
+      <ToolbarButton
+        onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        active={editor.isActive("blockquote")}
+        title="Blockquote"
+      >
         <Quote className="h-3.5 w-3.5" />
       </ToolbarButton>
-      <ToolbarButton onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editor.isActive("codeBlock")} title="Code block">
+      <ToolbarButton
+        onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+        active={editor.isActive("codeBlock")}
+        title="Code block"
+      >
         <Code2 className="h-3.5 w-3.5" />
       </ToolbarButton>
 
@@ -225,13 +332,21 @@ function RichToolbar({
         className="inline-flex h-8 cursor-pointer items-center justify-center rounded-lg px-2 text-xs font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
         title="Insert image"
       >
-        {uploadingInline ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImageIcon className="h-3.5 w-3.5" />}
+        {uploadingInline ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <ImageIcon className="h-3.5 w-3.5" />
+        )}
         <input type="file" accept="image/*" className="hidden" onChange={onInsertImage} />
       </label>
 
       <div className="mx-1 h-5 w-px bg-slate-200" />
 
-      <ToolbarButton onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Horizontal rule" active={false}>
+      <ToolbarButton
+        onClick={() => editor.chain().focus().setHorizontalRule().run()}
+        title="Horizontal rule"
+        active={false}
+      >
         <Minus className="h-3.5 w-3.5" />
       </ToolbarButton>
     </div>
@@ -239,6 +354,9 @@ function RichToolbar({
 }
 
 
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
 
 export function TutorialStudioPage() {
   const { token } = useAuth();
@@ -260,27 +378,29 @@ export function TutorialStudioPage() {
   const [autosaveStatus, setAutosaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Always holds the latest form + editor state for the timer callback
   const latestFormRef = useRef(form);
-  useEffect(() => { latestFormRef.current = form; }, [form]);
+  useEffect(() => {
+    latestFormRef.current = form;
+  }, [form]);
 
-  // Rich vs Markdown mode toggle
   const [editorMode, setEditorMode] = useState<EditorMode>("rich");
-  // Markdown tab (write/preview) — only shown in markdown mode
   const [markdownTab, setMarkdownTab] = useState<PreviewTab>("write");
 
 
+  // -------------------------------------------------------------------------
+  // Tiptap editor
+  // -------------------------------------------------------------------------
 
   const editor = useEditor({
     extensions: [
       StarterKit,
+      CodeBlockCopyPlugin,
       Placeholder.configure({ placeholder: "Start writing your tutorial…" }),
       TiptapImage.configure({ inline: false, allowBase64: false }),
       TiptapLink.configure({ openOnClick: false }),
     ],
     content: "",
     onUpdate: ({ editor }) => {
-      // Keep body_markdown in sync from rich editor
       const html = editor.getHTML();
       setForm((prev) => ({ ...prev, body_markdown: htmlToMarkdown(html) }));
     },
@@ -293,6 +413,38 @@ export function TutorialStudioPage() {
   });
 
 
+  // -------------------------------------------------------------------------
+  // Inject copy buttons into Tiptap <pre> elements
+  // -------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (!editor) return;
+
+    const injectCopyButtons = () => {
+      const editorEl = document.querySelector(".ProseMirror");
+      if (!editorEl) return;
+      editorEl.querySelectorAll("pre").forEach((pre) => {
+        if (pre.querySelector(".copy-code-btn")) return;
+        const btn = document.createElement("button");
+        btn.className = "copy-code-btn";
+        btn.textContent = "Copy";
+        btn.type = "button";
+        pre.style.position = "relative";
+        pre.appendChild(btn);
+      });
+    };
+
+    injectCopyButtons();
+    editor.on("update", injectCopyButtons);
+    return () => {
+      editor.off("update", injectCopyButtons);
+    };
+  }, [editor]);
+
+
+  // -------------------------------------------------------------------------
+  // Load existing tutorial — uses marked.parse so no round-trip corruption
+  // -------------------------------------------------------------------------
 
   useEffect(() => {
     let cancelled = false;
@@ -313,15 +465,20 @@ export function TutorialStudioPage() {
           cover_image_url: tutorial.cover_image_url || tutorial.cover_image || "",
           cover_image_path: tutorial.cover_image_path || "",
           cover_image_alt: tutorial.cover_image_alt || "",
-          thumbnail_image_url: tutorial.thumbnail_image_url || tutorial.thumbnail_image || "",
+          thumbnail_image_url:
+            tutorial.thumbnail_image_url || tutorial.thumbnail_image || "",
           thumbnail_image_path: tutorial.thumbnail_image_path || "",
           tags: tutorial.tags.map((t) => t.name),
           tag_input: tutorial.tags.map((t) => t.name).join(", "),
         };
         setForm(formState);
-        // Populate rich editor with existing markdown (rendered as simple HTML)
+
+        // FIX: use marked.parse (not renderPreview) to avoid double-<ul> / extra
+        // newlines on every load/edit cycle.
         if (editor && tutorial.body_markdown) {
-          editor.commands.setContent(renderPreview(tutorial.body_markdown));
+          editor.commands.setContent(
+            marked.parse(tutorial.body_markdown) as string
+          );
         }
         setError(null);
       } catch {
@@ -331,82 +488,171 @@ export function TutorialStudioPage() {
       }
     };
     void load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [slug, token, editor]);
 
-useEffect(() => {
-  // Don't autosave on initial load or if there's nothing worth saving
-  if (!form.title.trim() || !token) return;
 
-  if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+  // -------------------------------------------------------------------------
+  // Autosave (5-second debounce)
+  // -------------------------------------------------------------------------
 
-  setAutosaveStatus("idle");
+  useEffect(() => {
+    if (!form.title.trim() || !token) return;
 
-  autosaveTimer.current = setTimeout(async () => {
-    const current = latestFormRef.current;
-    const md = editorMode === "rich" && editor
-      ? htmlToMarkdown(editor.getHTML())
-      : current.body_markdown;
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    setAutosaveStatus("idle");
 
-    const payload: TutorialPayload = {
-      title: current.title.trim(),
-      slug: current.slug.trim(),
-      excerpt: current.excerpt.trim(),
-      body_markdown: md,
-      status: current.status === "published" ? "published" : "draft",
-      seo_title: current.seo_title.trim(),
-      meta_description: current.meta_description.trim(),
-      seo_keywords: current.seo_keywords.trim(),
-      cover_image_url: current.cover_image_url.trim(),
-      cover_image_path: current.cover_image_path.trim(),
-      cover_image_alt: current.cover_image_alt.trim(),
-      thumbnail_image_url: current.thumbnail_image_url.trim(),
-      thumbnail_image_path: current.thumbnail_image_path.trim(),
-      tags: current.tag_input.split(",").map((t) => t.trim()).filter(Boolean),
+    autosaveTimer.current = setTimeout(async () => {
+      const current = latestFormRef.current;
+      const md =
+        editorMode === "rich" && editor
+          ? htmlToMarkdown(editor.getHTML())
+          : current.body_markdown;
+
+      const payload: TutorialPayload = {
+        title: current.title.trim(),
+        slug: current.slug.trim(),
+        excerpt: current.excerpt.trim(),
+        body_markdown: md,
+        status: current.status === "published" ? "published" : "draft",
+        seo_title: current.seo_title.trim(),
+        meta_description: current.meta_description.trim(),
+        seo_keywords: current.seo_keywords.trim(),
+        cover_image_url: current.cover_image_url.trim(),
+        cover_image_path: current.cover_image_path.trim(),
+        cover_image_alt: current.cover_image_alt.trim(),
+        thumbnail_image_url: current.thumbnail_image_url.trim(),
+        thumbnail_image_path: current.thumbnail_image_path.trim(),
+        tags: current.tag_input
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean),
+      };
+
+      if (!payload.title || !payload.body_markdown.trim()) return;
+
+      setAutosaveStatus("saving");
+      try {
+        const saved = slug
+          ? await updateTutorial(token, slug, payload)
+          : await createTutorial(token, payload);
+
+        lastSavedAt.current = new Date();
+        setAutosaveStatus("saved");
+
+        if (!slug && saved.slug) {
+          window.history.replaceState(
+            null,
+            "",
+            `/tutorials/studio/${saved.slug}`
+          );
+        }
+
+        setTimeout(() => setAutosaveStatus("idle"), 3000);
+      } catch {
+        setAutosaveStatus("idle");
+      }
+    }, 5000);
+
+    return () => {
+      if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     };
+  }, [form, editorMode]);
 
-    if (!payload.title || !payload.body_markdown.trim()) return;
 
-    setAutosaveStatus("saving");
-    try {
-      const saved = slug
-        ? await updateTutorial(token, slug, payload)
-        : await createTutorial(token, payload);
+ // -------------------------------------------------------------------------
+  // Preview HTML (markdown tab only)
+  // -------------------------------------------------------------------------
 
-      lastSavedAt.current = new Date();
-      setAutosaveStatus("saved");
+  const previewHtml = useMemo(
+    () => renderPreview(form.body_markdown),
+    [form.body_markdown]
+  );
 
-      // If this was a new tutorial, update the URL without a full navigation
-      if (!slug && saved.slug) {
-        window.history.replaceState(null, "", `/tutorials/studio/${saved.slug}`);
+
+
+  // -------------------------------------------------------------------------
+  // OS tab switcher — wires up click events in the preview pane
+  // -------------------------------------------------------------------------
+
+  useEffect(() => {
+    if (markdownTab !== "preview") return;
+
+    const handler = (e: MouseEvent) => {
+      // Copy button inside os-tabs-block
+      const copyBtn = (e.target as HTMLElement).closest(
+        ".os-tab-content .copy-code-btn"
+      ) as HTMLElement | null;
+      if (copyBtn) {
+        const encoded = copyBtn.dataset.content ?? "";
+        navigator.clipboard.writeText(decodeURIComponent(encoded)).then(() => {
+          copyBtn.textContent = "Copied!";
+          setTimeout(() => {
+            copyBtn.textContent = "Copy";
+          }, 2000);
+        });
+        return;
       }
 
-      // Fade back to idle after 3s
-      setTimeout(() => setAutosaveStatus("idle"), 3000);
-    } catch {
-      setAutosaveStatus("idle"); // fail silently — manual save still works
-    }
-  }, 5000); // 5 second debounce
+      // Tab button
+      const btn = (e.target as HTMLElement).closest(
+        ".os-tab-btn"
+      ) as HTMLElement | null;
+      if (!btn) return;
+      const block = btn.closest(".os-tabs-block") as HTMLElement | null;
+      if (!block) return;
 
-  return () => {
-    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
-  };
-}, [form, editorMode]); // fires whenever form content changes
+      const os = btn.dataset.os!;
+      const raw = decodeURIComponent(
+        (block.dataset as Record<string, string>)[os] ?? ""
+      );
 
-  const previewHtml = useMemo(() => renderPreview(form.body_markdown), [form.body_markdown]);
+      block
+        .querySelectorAll(".os-tab-btn")
+        .forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
 
-  const updateField = <K extends keyof TutorialFormState>(field: K, value: TutorialFormState[K]) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
+      const code = block.querySelector(".os-tab-content code");
+      const copyBtnInBlock = block.querySelector(
+        ".copy-code-btn"
+      ) as HTMLElement | null;
+
+      if (code) code.textContent = raw;
+      if (copyBtnInBlock)
+        copyBtnInBlock.dataset.content = encodeURIComponent(raw);
+    };
+
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, [markdownTab, previewHtml]);
+
 
  
 
-  const uploadImage = async (file: File, mode: "inline" | "cover" | "thumbnail") => {
+  // -------------------------------------------------------------------------
+  // Helpers
+  // -------------------------------------------------------------------------
+
+  const updateField = <K extends keyof TutorialFormState>(
+    field: K,
+    value: TutorialFormState[K]
+  ) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const uploadImage = async (
+    file: File,
+    mode: "inline" | "cover" | "thumbnail"
+  ) => {
     if (!token) return;
     const setUploading =
-      mode === "inline" ? setUploadingInlineImage
-      : mode === "cover" ? setUploadingCoverImage
-      : setUploadingThumbnailImage;
+      mode === "inline"
+        ? setUploadingInlineImage
+        : mode === "cover"
+        ? setUploadingCoverImage
+        : setUploadingThumbnailImage;
 
     setUploading(true);
     setError(null);
@@ -442,54 +688,60 @@ useEffect(() => {
     }
   };
 
-  const handleFileSelected = async (e: ChangeEvent<HTMLInputElement>, mode: "inline" | "cover" | "thumbnail") => {
+  const handleFileSelected = async (
+    e: ChangeEvent<HTMLInputElement>,
+    mode: "inline" | "cover" | "thumbnail"
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
     await uploadImage(file, mode);
     e.target.value = "";
   };
 
-  // ---------------------------------------------------------------------------
-  // Switch between rich and markdown modes
-  // ---------------------------------------------------------------------------
+
+  // -------------------------------------------------------------------------
+  // Mode switching — FIX: use marked.parse when switching TO rich mode
+  // -------------------------------------------------------------------------
 
   const switchToMarkdown = () => {
     if (editor) {
-      // Sync rich editor → markdown textarea
-      setForm((prev) => ({ ...prev, body_markdown: htmlToMarkdown(editor.getHTML()) }));
+      setForm((prev) => ({
+        ...prev,
+        body_markdown: htmlToMarkdown(editor.getHTML()),
+      }));
     }
     setEditorMode("markdown");
   };
 
   const switchToRich = () => {
     if (editor) {
-      // Sync markdown → rich editor
-      editor.commands.setContent(renderPreview(form.body_markdown));
+      // FIX: marked.parse instead of renderPreview — prevents bullet duplication
+      editor.commands.setContent(
+        marked.parse(form.body_markdown) as string
+      );
     }
     setEditorMode("rich");
   };
 
-  // ---------------------------------------------------------------------------
-  // Markdown editor: insert snippet at cursor
-  // ---------------------------------------------------------------------------
+
+  // -------------------------------------------------------------------------
+  // Markdown quick-insert
+  // -------------------------------------------------------------------------
 
   const appendMarkdown = (snippet: string) => {
-    const target = markdownRef.current;
     const insertion = snippet.startsWith("\n") ? snippet : `\n${snippet}`;
-    const next = form.body_markdown + insertion;
-    updateField("body_markdown", next);
-    // Also sync to rich editor if we switch back
-    target?.focus();
+    updateField("body_markdown", form.body_markdown + insertion);
+    markdownRef.current?.focus();
   };
 
-  // ---------------------------------------------------------------------------
+
+  // -------------------------------------------------------------------------
   // Save
-  // ---------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
 
   const handleSave = async (mode: SaveMode) => {
     if (!token) return;
 
-    // If in rich mode, sync once more before saving
     if (editorMode === "rich" && editor) {
       const md = htmlToMarkdown(editor.getHTML());
       setForm((prev) => ({ ...prev, body_markdown: md }));
@@ -499,7 +751,10 @@ useEffect(() => {
       title: form.title.trim(),
       slug: form.slug.trim(),
       excerpt: form.excerpt.trim(),
-      body_markdown: editorMode === "rich" && editor ? htmlToMarkdown(editor.getHTML()) : form.body_markdown,
+      body_markdown:
+        editorMode === "rich" && editor
+          ? htmlToMarkdown(editor.getHTML())
+          : form.body_markdown,
       status: mode,
       seo_title: form.seo_title.trim(),
       meta_description: form.meta_description.trim(),
@@ -509,7 +764,10 @@ useEffect(() => {
       cover_image_alt: form.cover_image_alt.trim(),
       thumbnail_image_url: form.thumbnail_image_url.trim(),
       thumbnail_image_path: form.thumbnail_image_path.trim(),
-      tags: form.tag_input.split(",").map((t) => t.trim()).filter(Boolean),
+      tags: form.tag_input
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean),
     };
 
     if (!payload.title || !payload.body_markdown.trim()) {
@@ -529,10 +787,15 @@ useEffect(() => {
         ...prev,
         slug: saved.slug,
         status: saved.status,
-        tag_input: saved.tags.map((t) => t.name).join(", "),
+        tag_input: saved.tags.map((t: { name: string }) => t.name).join(", "),
       }));
-      setNotice(mode === "published" ? "Tutorial published successfully." : "Draft saved.");
-      if (!slug) navigate(`/tutorials/studio/${saved.slug}`, { replace: true });
+      setNotice(
+        mode === "published"
+          ? "Tutorial published successfully."
+          : "Draft saved."
+      );
+      if (!slug)
+        navigate(`/tutorials/studio/${saved.slug}`, { replace: true });
     } catch {
       setError("Failed to save tutorial.");
     } finally {
@@ -540,9 +803,10 @@ useEffect(() => {
     }
   };
 
-  // ---------------------------------------------------------------------------
+
+  // -------------------------------------------------------------------------
   // Render
-  // ---------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
 
   return (
     <PlatformLayout>
@@ -551,7 +815,10 @@ useEffect(() => {
         {/* Header */}
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <Link to="/learning" className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700">
+            <Link
+              to="/learning"
+              className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-700"
+            >
               <ArrowLeft className="h-4 w-4" />
               Back to learning
             </Link>
@@ -559,11 +826,12 @@ useEffect(() => {
               {slug ? "Edit tutorial" : "Write a tutorial"}
             </h1>
             <p className="mt-2 max-w-3xl text-slate-600">
-              Create community tutorials with rich text or markdown, images, code samples, metadata, and publish controls.
+              Create community tutorials with rich text or markdown, images,
+              code samples, metadata, and publish controls.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
-              <div className="flex items-center gap-2 text-sm text-slate-400">
+            <div className="flex items-center gap-2 text-sm text-slate-400">
               {autosaveStatus === "saving" && (
                 <>
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -574,7 +842,11 @@ useEffect(() => {
                 <>
                   <Save className="h-3.5 w-3.5 text-emerald-500" />
                   <span className="text-emerald-600">
-                    Saved {lastSavedAt.current?.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    Saved{" "}
+                    {lastSavedAt.current?.toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </span>
                 </>
               )}
@@ -585,7 +857,11 @@ useEffect(() => {
               disabled={saving !== null}
               className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving === "draft" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {saving === "draft" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
               Save draft
             </button>
             <button
@@ -594,7 +870,11 @@ useEffect(() => {
               disabled={saving !== null}
               className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving === "published" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {saving === "published" ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
               Publish
             </button>
           </div>
@@ -602,10 +882,14 @@ useEffect(() => {
 
         {/* Alerts */}
         {error && (
-          <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
+          <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
         )}
         {notice && (
-          <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{notice}</div>
+          <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {notice}
+          </div>
         )}
 
         {loading ? (
@@ -623,7 +907,9 @@ useEffect(() => {
               <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="grid gap-5 md:grid-cols-2">
                   <label className="grid gap-2 md:col-span-2">
-                    <span className="text-sm font-semibold text-slate-800">Title</span>
+                    <span className="text-sm font-semibold text-slate-800">
+                      Title
+                    </span>
                     <input
                       value={form.title}
                       onChange={(e) => updateField("title", e.target.value)}
@@ -632,7 +918,9 @@ useEffect(() => {
                     />
                   </label>
                   <label className="grid gap-2">
-                    <span className="text-sm font-semibold text-slate-800">Slug</span>
+                    <span className="text-sm font-semibold text-slate-800">
+                      Slug
+                    </span>
                     <input
                       value={form.slug}
                       onChange={(e) => updateField("slug", e.target.value)}
@@ -641,7 +929,9 @@ useEffect(() => {
                     />
                   </label>
                   <label className="grid gap-2">
-                    <span className="text-sm font-semibold text-slate-800">Tags</span>
+                    <span className="text-sm font-semibold text-slate-800">
+                      Tags
+                    </span>
                     <input
                       value={form.tag_input}
                       onChange={(e) => updateField("tag_input", e.target.value)}
@@ -650,7 +940,9 @@ useEffect(() => {
                     />
                   </label>
                   <label className="grid gap-2 md:col-span-2">
-                    <span className="text-sm font-semibold text-slate-800">Excerpt</span>
+                    <span className="text-sm font-semibold text-slate-800">
+                      Excerpt
+                    </span>
                     <textarea
                       value={form.excerpt}
                       onChange={(e) => updateField("excerpt", e.target.value)}
@@ -672,7 +964,9 @@ useEffect(() => {
                       type="button"
                       onClick={switchToRich}
                       className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                        editorMode === "rich" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                        editorMode === "rich"
+                          ? "bg-white text-slate-950 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
                       }`}
                     >
                       Rich text
@@ -681,7 +975,9 @@ useEffect(() => {
                       type="button"
                       onClick={switchToMarkdown}
                       className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                        editorMode === "markdown" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                        editorMode === "markdown"
+                          ? "bg-white text-slate-950 shadow-sm"
+                          : "text-slate-500 hover:text-slate-800"
                       }`}
                     >
                       Markdown
@@ -714,6 +1010,7 @@ useEffect(() => {
                       {[
                         { type: "heading", label: "Section", icon: Heading2 },
                         { type: "code", label: "Code", icon: Code2 },
+                        { type: "os-tabs", label: "OS Tabs", icon: Code2 },
                         { type: "list", label: "List", icon: List },
                         { type: "quote", label: "Quote", icon: Quote },
                       ].map((item) => (
@@ -722,10 +1019,14 @@ useEffect(() => {
                           type="button"
                           onClick={() => {
                             const snippets: Record<string, string> = {
-                              heading: "\n## New Section\n\nAdd the key idea here.\n",
+                              heading:
+                                "\n## New Section\n\nAdd the key idea here.\n",
                               code: "\n```python\nprint('hello world')\n```\n",
+                              "os-tabs":
+                                "\n```bash:mac\nbrew install your-package\n```\n```bash:windows\nchoco install your-package\n```\n```bash:linux\nsudo apt install your-package\n```\n",
                               list: "\n- First point\n- Second point\n- Third point\n",
-                              quote: "\n> Add a key callout or note here.\n",
+                              quote:
+                                "\n> Add a key callout or note here.\n",
                             };
                             appendMarkdown(snippets[item.type]);
                           }}
@@ -736,9 +1037,18 @@ useEffect(() => {
                         </button>
                       ))}
                       <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">
-                        {uploadingInlineImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+                        {uploadingInlineImage ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <ImageIcon className="h-4 w-4" />
+                        )}
                         Insert image
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => void handleFileSelected(e, "inline")} />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => void handleFileSelected(e, "inline")}
+                        />
                       </label>
                     </div>
 
@@ -749,7 +1059,9 @@ useEffect(() => {
                           type="button"
                           onClick={() => setMarkdownTab("write")}
                           className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                            markdownTab === "write" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                            markdownTab === "write"
+                              ? "bg-white text-slate-950 shadow-sm"
+                              : "text-slate-500 hover:text-slate-800"
                           }`}
                         >
                           Write
@@ -758,7 +1070,9 @@ useEffect(() => {
                           type="button"
                           onClick={() => setMarkdownTab("preview")}
                           className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${
-                            markdownTab === "preview" ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-800"
+                            markdownTab === "preview"
+                              ? "bg-white text-slate-950 shadow-sm"
+                              : "text-slate-500 hover:text-slate-800"
                           }`}
                         >
                           <Eye className="h-4 w-4" />
@@ -771,7 +1085,9 @@ useEffect(() => {
                       <textarea
                         ref={markdownRef}
                         value={form.body_markdown}
-                        onChange={(e) => updateField("body_markdown", e.target.value)}
+                        onChange={(e) =>
+                          updateField("body_markdown", e.target.value)
+                        }
                         rows={28}
                         className="min-h-[680px] w-full rounded-3xl border border-slate-300 bg-slate-950 px-5 py-5 font-mono text-sm leading-7 text-slate-50 outline-none transition focus:border-blue-500"
                       />
@@ -789,10 +1105,14 @@ useEffect(() => {
             {/* ---- Sidebar ---- */}
             <aside className="space-y-6">
               <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="text-lg font-semibold text-slate-900">SEO and publishing</h2>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  SEO and publishing
+                </h2>
                 <div className="mt-4 grid gap-4">
                   <label className="grid gap-2">
-                    <span className="text-sm font-semibold text-slate-800">SEO title</span>
+                    <span className="text-sm font-semibold text-slate-800">
+                      SEO title
+                    </span>
                     <input
                       value={form.seo_title}
                       onChange={(e) => updateField("seo_title", e.target.value)}
@@ -801,20 +1121,28 @@ useEffect(() => {
                     />
                   </label>
                   <label className="grid gap-2">
-                    <span className="text-sm font-semibold text-slate-800">Meta description</span>
+                    <span className="text-sm font-semibold text-slate-800">
+                      Meta description
+                    </span>
                     <textarea
                       value={form.meta_description}
-                      onChange={(e) => updateField("meta_description", e.target.value)}
+                      onChange={(e) =>
+                        updateField("meta_description", e.target.value)
+                      }
                       rows={4}
                       placeholder="Short search snippet for the article"
                       className="rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500"
                     />
                   </label>
                   <label className="grid gap-2">
-                    <span className="text-sm font-semibold text-slate-800">SEO keywords</span>
+                    <span className="text-sm font-semibold text-slate-800">
+                      SEO keywords
+                    </span>
                     <input
                       value={form.seo_keywords}
-                      onChange={(e) => updateField("seo_keywords", e.target.value)}
+                      onChange={(e) =>
+                        updateField("seo_keywords", e.target.value)
+                      }
                       placeholder="comma-separated keywords"
                       className="rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500"
                     />
@@ -829,11 +1157,24 @@ useEffect(() => {
                   {/* Cover image */}
                   <div className="rounded-2xl border border-slate-200 p-4">
                     <div className="mb-3 flex items-center justify-between">
-                      <span className="text-sm font-semibold text-slate-800">Cover image</span>
+                      <span className="text-sm font-semibold text-slate-800">
+                        Cover image
+                      </span>
                       <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">
-                        {uploadingCoverImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+                        {uploadingCoverImage ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <ImageIcon className="h-4 w-4" />
+                        )}
                         Upload
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => void handleFileSelected(e, "cover")} />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) =>
+                            void handleFileSelected(e, "cover")
+                          }
+                        />
                       </label>
                     </div>
                     {form.cover_image_url && (
@@ -845,13 +1186,17 @@ useEffect(() => {
                     )}
                     <input
                       value={form.cover_image_url}
-                      onChange={(e) => updateField("cover_image_url", e.target.value)}
+                      onChange={(e) =>
+                        updateField("cover_image_url", e.target.value)
+                      }
                       placeholder="https://… or paste URL"
                       className="mb-3 w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500"
                     />
                     <input
                       value={form.cover_image_alt}
-                      onChange={(e) => updateField("cover_image_alt", e.target.value)}
+                      onChange={(e) =>
+                        updateField("cover_image_alt", e.target.value)
+                      }
                       placeholder="Cover image alt text"
                       className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500"
                     />
@@ -860,11 +1205,24 @@ useEffect(() => {
                   {/* Thumbnail */}
                   <div className="rounded-2xl border border-slate-200 p-4">
                     <div className="mb-3 flex items-center justify-between">
-                      <span className="text-sm font-semibold text-slate-800">Thumbnail</span>
+                      <span className="text-sm font-semibold text-slate-800">
+                        Thumbnail
+                      </span>
                       <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100">
-                        {uploadingThumbnailImage ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+                        {uploadingThumbnailImage ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <ImageIcon className="h-4 w-4" />
+                        )}
                         Upload
-                        <input type="file" accept="image/*" className="hidden" onChange={(e) => void handleFileSelected(e, "thumbnail")} />
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) =>
+                            void handleFileSelected(e, "thumbnail")
+                          }
+                        />
                       </label>
                     </div>
                     {form.thumbnail_image_url && (
@@ -876,7 +1234,9 @@ useEffect(() => {
                     )}
                     <input
                       value={form.thumbnail_image_url}
-                      onChange={(e) => updateField("thumbnail_image_url", e.target.value)}
+                      onChange={(e) =>
+                        updateField("thumbnail_image_url", e.target.value)
+                      }
                       placeholder="https://… or paste URL"
                       className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500"
                     />
@@ -885,12 +1245,22 @@ useEffect(() => {
               </div>
 
               <div className="rounded-3xl border border-blue-100 bg-blue-50/70 p-6 shadow-sm">
-                <h2 className="text-lg font-semibold text-slate-900">SEO checklist</h2>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  SEO checklist
+                </h2>
                 <ul className="mt-4 space-y-3 text-sm text-slate-700">
                   <li>Use a keyword-focused title and slug.</li>
-                  <li>Add H2 sections so the table of contents stays useful.</li>
-                  <li>Include code, screenshots, and internal links to Sabhuku models or datasets.</li>
-                  <li>Keep the excerpt and meta description clear and non-duplicative.</li>
+                  <li>
+                    Add H2 sections so the table of contents stays useful.
+                  </li>
+                  <li>
+                    Include code, screenshots, and internal links to Sabhuku
+                    models or datasets.
+                  </li>
+                  <li>
+                    Keep the excerpt and meta description clear and
+                    non-duplicative.
+                  </li>
                 </ul>
               </div>
             </aside>
@@ -898,8 +1268,11 @@ useEffect(() => {
         )}
       </div>
 
-      {/* Tiptap prose styles injected globally */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Global styles                                                        */}
+      {/* ------------------------------------------------------------------ */}
       <style>{`
+        /* ── Placeholder ── */
         .ProseMirror p.is-editor-empty:first-child::before {
           color: #94a3b8;
           content: attr(data-placeholder);
@@ -907,19 +1280,193 @@ useEffect(() => {
           height: 0;
           pointer-events: none;
         }
+
+        /* ── Typography ── */
         .ProseMirror h2 { font-size: 1.5rem; font-weight: 700; margin: 1.5rem 0 0.75rem; }
         .ProseMirror h3 { font-size: 1.25rem; font-weight: 600; margin: 1.25rem 0 0.5rem; }
-        .ProseMirror p { margin: 0.75rem 0; }
-        .ProseMirror ul { list-style: disc; padding-left: 1.5rem; margin: 0.75rem 0; }
+        .ProseMirror p  { margin: 0.75rem 0; }
+
+        /* ── Lists ── */
+        .ProseMirror ul { list-style: disc;    padding-left: 1.5rem; margin: 0.75rem 0; }
         .ProseMirror ol { list-style: decimal; padding-left: 1.5rem; margin: 0.75rem 0; }
         .ProseMirror li { margin: 0.25rem 0; }
-        .ProseMirror blockquote { border-left: 4px solid #3b82f6; padding-left: 1rem; color: #475569; margin: 1rem 0; font-style: italic; }
-        .ProseMirror pre { background: #0f172a; color: #f1f5f9; padding: 1rem; border-radius: 0.75rem; margin: 1rem 0; overflow-x: auto; }
-        .ProseMirror code { background: #f1f5f9; padding: 0.15rem 0.4rem; border-radius: 0.25rem; font-size: 0.875em; }
-        .ProseMirror pre code { background: transparent; padding: 0; }
+
+        /* ── Blockquote ── */
+        .ProseMirror blockquote {
+          border-left: 4px solid #3b82f6;
+          padding-left: 1rem;
+          color: #475569;
+          margin: 1rem 0;
+          font-style: italic;
+        }
+
+        /* ── Code block — dark theme ── */
+        .ProseMirror pre {
+          background: #0d1117;
+          color: #e6edf3;
+          padding: 2.25rem 1.25rem 1.25rem;
+          border-radius: 0.75rem;
+          margin: 1.25rem 0;
+          overflow-x: auto;
+          position: relative;
+          border: 1px solid #21262d;
+          font-size: 0.875rem;
+          line-height: 1.75;
+          box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+        }
+
+        /* Language label (top-left) */
+        .ProseMirror pre::before {
+          content: attr(data-language);
+          position: absolute;
+          top: 0.6rem;
+          left: 1rem;
+          font-size: 0.68rem;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          color: #6e7681;
+          font-family: ui-monospace, monospace;
+        }
+
+        /* Copy button (top-right) */
+        .ProseMirror pre .copy-code-btn {
+          position: absolute;
+          top: 0.5rem;
+          right: 0.75rem;
+          background: #161b22;
+          color: #8b949e;
+          border: 1px solid #30363d;
+          border-radius: 0.375rem;
+          padding: 0.2rem 0.65rem;
+          font-size: 0.7rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          font-family: ui-sans-serif, system-ui, sans-serif;
+          line-height: 1.6;
+        }
+        .ProseMirror pre .copy-code-btn:hover {
+          background: #21262d;
+          color: #e6edf3;
+          border-color: #6e7681;
+        }
+
+        /* Inline code */
+        .ProseMirror code {
+          background: #f1f5f9;
+          padding: 0.15rem 0.4rem;
+          border-radius: 0.25rem;
+          font-size: 0.875em;
+          color: #be185d;
+        }
+        .ProseMirror pre code {
+          background: transparent;
+          padding: 0;
+          color: inherit;
+          font-size: inherit;
+        }
+
+        /* ── Misc ── */
         .ProseMirror img { max-width: 100%; border-radius: 0.75rem; margin: 1rem 0; }
-        .ProseMirror hr { border: none; border-top: 1px solid #e2e8f0; margin: 2rem 0; }
-        .ProseMirror a { color: #2563eb; text-decoration: underline; }
+        .ProseMirror hr  { border: none; border-top: 1px solid #e2e8f0; margin: 2rem 0; }
+        .ProseMirror a   { color: #2563eb; text-decoration: underline; }
+
+        /* ================================================================ */
+        /* Markdown preview — code blocks                                    */
+        /* ================================================================ */
+        .prose pre {
+          background: #0d1117 !important;
+          color: #e6edf3 !important;
+          padding: 2.25rem 1.25rem 1.25rem !important;
+          border-radius: 0.75rem !important;
+          overflow-x: auto;
+          position: relative;
+          border: 1px solid #21262d !important;
+          font-size: 0.875rem;
+          line-height: 1.75;
+          box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+        }
+        .prose pre code {
+          background: transparent !important;
+          padding: 0 !important;
+          color: inherit !important;
+          font-size: inherit !important;
+        }
+
+        /* Copy button in prose preview */
+        .prose pre .copy-code-btn {
+          position: absolute;
+          top: 0.5rem;
+          right: 0.75rem;
+          background: #161b22;
+          color: #8b949e;
+          border: 1px solid #30363d;
+          border-radius: 0.375rem;
+          padding: 0.2rem 0.65rem;
+          font-size: 0.7rem;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.15s ease;
+        }
+        .prose pre .copy-code-btn:hover {
+          background: #21262d;
+          color: #e6edf3;
+          border-color: #6e7681;
+        }
+
+        /* ================================================================ */
+        /* OS tab switcher                                                    */
+        /* ================================================================ */
+        .os-tabs-block {
+          margin: 1.25rem 0;
+          border-radius: 0.75rem;
+          overflow: hidden;
+          border: 1px solid #21262d;
+          box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3);
+        }
+
+        .os-tab-btns {
+          display: flex;
+          background: #161b22;
+          border-bottom: 1px solid #21262d;
+          padding: 0 0.5rem;
+          gap: 0.25rem;
+        }
+
+        .os-tab-btn {
+          padding: 0.55rem 1rem;
+          font-size: 0.78rem;
+          font-weight: 600;
+          color: #6e7681;
+          border: none;
+          background: transparent;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          border-bottom: 2px solid transparent;
+          margin-bottom: -1px;
+          font-family: ui-sans-serif, system-ui, sans-serif;
+        }
+        .os-tab-btn:hover:not(.active) {
+          color: #c9d1d9;
+        }
+        .os-tab-btn.active {
+          color: #e6edf3;
+          border-bottom-color: #3b82f6;
+        }
+
+        .os-tab-content {
+          margin: 0 !important;
+          border-radius: 0 !important;
+          border: none !important;
+          box-shadow: none !important;
+          background: #0d1117 !important;
+          padding: 1.25rem !important;
+        }
+        .os-tab-content .copy-code-btn {
+          top: 0.5rem;
+          right: 0.75rem;
+        }
       `}</style>
     </PlatformLayout>
   );
