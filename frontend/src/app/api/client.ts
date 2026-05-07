@@ -4,13 +4,13 @@ let refreshInFlight: Promise<string | null> | null = null;
 
 async function refreshAccessToken() {
   const refreshToken = getStoredRefreshToken();
-  if (!refreshToken) return null;
 
   if (!refreshInFlight) {
     refreshInFlight = fetch("/api/auth/token/refresh/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh: refreshToken }),
+      credentials: "same-origin",
+      body: JSON.stringify(refreshToken ? { refresh: refreshToken } : {}),
     })
       .then(async (res) => {
         if (!res.ok) return null;
@@ -47,6 +47,7 @@ export async function apiClient<T>(
       "Content-Type": "application/json",
       ...(activeToken && { Authorization: `Bearer ${activeToken}` }), // inject if present
     },
+    credentials: "same-origin",
     ...options,
   });
 
@@ -58,6 +59,7 @@ export async function apiClient<T>(
           "Content-Type": "application/json",
           Authorization: `Bearer ${activeToken}`,
         },
+        credentials: "same-origin",
         ...options,
       });
     }

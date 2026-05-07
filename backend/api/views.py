@@ -8,6 +8,10 @@ from django.contrib.auth.models import User
 from django.http import Http404
 from django.db.models import Q, Sum
 from django.utils import timezone
+from allauth.socialaccount.providers.github.views import GitHubOAuth2Adapter
+from allauth.socialaccount.providers.google.views import GoogleOAuth2Adapter
+from allauth.socialaccount.providers.oauth2.client import OAuth2Client
+from dj_rest_auth.registration.views import SocialLoginView
 from rest_framework import generics, permissions, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -17,8 +21,21 @@ from google.cloud import storage
 
 from .models import Model, Dataset, UserProfile
 from .serializers import ModelSerializer, DatasetSerializer, UserProfileSerializer
+from .social_serializers import SocialCodeLoginSerializer
 from tutorials.models import Tutorial
 from tutorials.serializers import TutorialSerializer
+
+
+class GoogleLoginView(SocialLoginView):
+    adapter_class = GoogleOAuth2Adapter
+    client_class = OAuth2Client
+    serializer_class = SocialCodeLoginSerializer
+
+
+class GitHubLoginView(SocialLoginView):
+    adapter_class = GitHubOAuth2Adapter
+    client_class = OAuth2Client
+    serializer_class = SocialCodeLoginSerializer
 
 
 class SignedUploadRequestSerializer(serializers.Serializer):

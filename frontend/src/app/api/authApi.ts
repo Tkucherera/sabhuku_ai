@@ -19,6 +19,7 @@ export async function registerUser({
   const res = await fetch("/api/auth/registration/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
     body: JSON.stringify({
       username: email,
       email,
@@ -45,6 +46,7 @@ export async function loginUser({
   const res = await fetch("/api/auth/login/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
     body: JSON.stringify({ username: identifier, password }),
   });
 
@@ -53,11 +55,12 @@ export async function loginUser({
   return data as { access: string; refresh?: string };
 }
 
-export async function refreshAuthToken(refresh: string) {
+export async function refreshAuthToken(refresh?: string | null) {
   const res = await fetch("/api/auth/token/refresh/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh }),
+    credentials: "same-origin",
+    body: JSON.stringify(refresh ? { refresh } : {}),
   });
 
   if (!res.ok) throw await res.json().catch(() => ({ message: "Session refresh failed." }));

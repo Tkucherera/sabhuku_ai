@@ -68,6 +68,8 @@ INSTALLED_APPS = [
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    'allauth.socialaccount.providers.github',
 
     # dj - rest auth 
     'dj_rest_auth',
@@ -160,6 +162,44 @@ ACCOUNT_EMAIL_VERIFICATION = 'none' # Options: 'mandatory', 'optional', 'none'
 ACCOUNT_EMAIL_REQUIRED = True
 ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
 ACCOUNT_USERNAME_REQUIRED = True
+SOCIALACCOUNT_ADAPTER = "api.adapters.SabhukuSocialAccountAdapter"
+SOCIALACCOUNT_EMAIL_REQUIRED = False
+
+SOCIAL_AUTH_ALLOWED_REDIRECT_ORIGINS = env_list(
+    'SOCIAL_AUTH_ALLOWED_REDIRECT_ORIGINS',
+    'http://localhost,http://127.0.0.1,http://localhost:5173,http://127.0.0.1:5173'
+)
+if PUBLIC_SITE_URL := os.getenv("PUBLIC_SITE_URL", ""):
+    SOCIAL_AUTH_ALLOWED_REDIRECT_ORIGINS.append(PUBLIC_SITE_URL.rstrip("/"))
+
+
+def social_provider_config(provider_name, client_id_name, secret_name, scopes):
+    config = {"SCOPE": scopes}
+    client_id = os.getenv(client_id_name, "")
+    secret = os.getenv(secret_name, "")
+    if client_id and secret:
+        config["APP"] = {
+            "name": provider_name.title(),
+            "client_id": client_id,
+            "secret": secret,
+        }
+    return config
+
+
+SOCIALACCOUNT_PROVIDERS = {
+    "google": social_provider_config(
+        "google",
+        "GOOGLE_OAUTH_CLIENT_ID",
+        "GOOGLE_OAUTH_CLIENT_SECRET",
+        ["profile", "email"],
+    ),
+    "github": social_provider_config(
+        "github",
+        "GITHUB_OAUTH_CLIENT_ID",
+        "GITHUB_OAUTH_CLIENT_SECRET",
+        ["read:user", "user:email"],
+    ),
+}
 
 TEMPLATES = [
     {

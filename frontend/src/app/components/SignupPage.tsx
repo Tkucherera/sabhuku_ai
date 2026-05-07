@@ -5,6 +5,7 @@ import { Brain, Mail, Lock, Eye, EyeOff, AtSign } from "lucide-react";
 import { registerUser } from "../api/authApi";
 
 import { useAuth } from "./AuthContext";
+import { SocialAuthButtons } from "./SocialAuthButtons";
 
 export function SignupPage() {
   const [firstName, setFirstName] = useState("");
@@ -64,6 +65,14 @@ export function SignupPage() {
             </Link>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Create your account</h2>
             <p className="text-gray-600">Start building AI solutions today</p>
+          </div>
+
+          <SocialAuthButtons redirectTo="/profile" />
+
+          <div className="my-6 flex items-center gap-3">
+            <div className="h-px flex-1 bg-gray-200" />
+            <span className="text-xs font-medium uppercase tracking-wide text-gray-500">or</span>
+            <div className="h-px flex-1 bg-gray-200" />
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">

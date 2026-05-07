@@ -14,6 +14,7 @@ import {
 interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
+  isAuthLoading: boolean;
   login: (token: string, refreshToken?: string | null) => void;
   logout: () => void;
 }
@@ -27,24 +28,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => {
       const storedToken = localStorage.getItem("token");
       if (isTokenExpired(storedToken)) {
-        clearStoredToken();
         return null;
       }
       return storedToken;
     }
   );
+  const [isAuthLoading, setIsAuthLoading] = useState(
+    () => Boolean(localStorage.getItem("token") && isTokenExpired(localStorage.getItem("token")))
+  );
 
   const logout = useCallback(() => {
     setToken(null);
+    setIsAuthLoading(false);
     clearStoredToken();
   }, []);
 
   const refreshSession = useCallback(async () => {
     const refreshToken = getStoredRefreshToken();
-    if (!refreshToken) {
-      logout();
-      return;
-    }
 
     if (!refreshInFlightRef.current) {
       refreshInFlightRef.current = refreshAuthToken(refreshToken)
@@ -64,9 +64,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [logout]);
 
   const login = (jwt: string, refreshToken?: string | null) => {
+    setIsAuthLoading(false);
     setToken(jwt);
     storeAuthTokens(jwt, refreshToken);
   };
+
+  useEffect(() => {
+    const restoreSession = async () => {
+      const storedToken = localStorage.getItem("token");
+      if (!isTokenExpired(storedToken)) {
+        setIsAuthLoading(false);
+        return;
+      }
+
+      if (!storedToken && !getStoredRefreshToken()) {
+        clearStoredToken();
+        setIsAuthLoading(false);
+        return;
+      }
+
+      try {
+        await refreshSession();
+      } finally {
+        setIsAuthLoading(false);
+      }
+    };
+
+    void restoreSession();
+  }, [refreshSession]);
 
   useEffect(() => {
     const markActive = () => {
@@ -108,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshSession, token]);
 
   return (
-    <AuthContext.Provider value={{ token, isAuthenticated: Boolean(token), login, logout }}>
+    <AuthContext.Provider value={{ token, isAuthenticated: Boolean(token), isAuthLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
