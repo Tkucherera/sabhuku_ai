@@ -1,99 +1,13 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { Database, Brain, BookOpen, Users, ArrowRight, CheckCircle, Sparkles, MessageSquareHeart, ShieldCheck } from "lucide-react";
-import { getProfile } from "../api/authApi";
-import { useAuth } from "./AuthContext";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
-
-type LandingNavProfile = {
-  first_name: string;
-  last_name: string;
-  public_username: string;
-  avatar_url: string;
-};
-
-const buildInitials = (profile: LandingNavProfile | null) => {
-  const first = profile?.first_name?.trim()?.[0] ?? "";
-  const last = profile?.last_name?.trim()?.[0] ?? "";
-  const fallback = profile?.public_username?.trim()?.slice(0, 2) ?? "SA";
-  return `${first}${last}`.trim().toUpperCase() || fallback.toUpperCase();
-};
+import { Footer } from "./ui/footer";
+import { Nav } from "./ui/nav";
 
 export function LandingPage() {
-  const { token, isAuthenticated } = useAuth();
-  const [profile, setProfile] = useState<LandingNavProfile | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadProfile = async () => {
-      if (!token) {
-        setProfile(null);
-        return;
-      }
-
-      try {
-        const data = await getProfile(token);
-        if (!cancelled) {
-          setProfile({
-            first_name: data.first_name,
-            last_name: data.last_name,
-            public_username: data.public_username,
-            avatar_url: data.avatar_url,
-          });
-        }
-      } catch {
-        if (!cancelled) setProfile(null);
-      }
-    };
-
-    void loadProfile();
-    return () => {
-      cancelled = true;
-    };
-  }, [token]);
-
-  const initials = buildInitials(profile);
-
   return (
     <div className="min-h-screen">
-      {/* Navigation */}
-      <nav className="border-b bg-white/80 backdrop-blur-sm fixed top-0 left-0 right-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-2">
-              <Brain className="w-8 h-8 text-blue-600" />
-              <span className="font-bold text-xl">SABHUKU AI</span>
-            </div>
-            <div className="hidden md:flex items-center gap-8">
-              <a href="#services" className="text-gray-800 font-semibold hover:text-blue-600">Services</a>
-              <a href="#about" className="text-gray-800 font-semibold hover:text-blue-600">About</a>
-              <a href="#features" className="text-gray-800 font-semibold hover:text-blue-600">Features</a>
-              <a href="/community/tutorials/" className="text-gray-800 font-semibold hover:text-blue-600">Community Tutorials</a>
-            </div>
-            {isAuthenticated ? (
-              <Link to="/profile" className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg" aria-label="Open profile">
-                <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-sm font-medium">
-                  {profile?.avatar_url ? (
-                    <img src={profile.avatar_url} alt={profile.public_username || "Profile"} className="h-full w-full object-cover" />
-                  ) : (
-                    initials
-                  )}
-                </div>
-              </Link>
-            ) : (
-              <div className="flex items-center gap-3">
-                <Link to="/login" className="text-gray-700 hover:text-blue-600 px-4 py-2">
-                  Login
-                </Link>
-                <Link to="/signup" className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
-                  Get Started
-                </Link>
-              </div>
-            )}
-          </div>
-        </div>
-      </nav>
+      <Nav />
 
       {/* Hero Section */}
       <section className="relative overflow-hidden pt-32 pb-20 px-4 sm:px-6 lg:px-8 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.18),_transparent_28%),radial-gradient(circle_at_80%_20%,_rgba(34,197,94,0.12),_transparent_24%),linear-gradient(135deg,_#f5f9ff_0%,_#eef4ff_45%,_#f7fbff_100%)]">
@@ -373,53 +287,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-gray-300 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center gap-2 mb-4">
-                <Brain className="w-6 h-6 text-blue-400" />
-                <span className="font-bold text-white">SABHUKU AI</span>
-              </div>
-              <p className="text-sm">
-                Empowering Zimbabwe and SADC with AI and data solutions.
-              </p>
-            </div>
-            
-            <div>
-              <h4 className="font-bold text-white mb-4">Company</h4>
-              <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white">About</a></li>
-                <li><a href="#" className="hover:text-white">Contact</a></li>
-                <li><a href="#" className="hover:text-white">Careers</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-bold text-white mb-4">Legal</h4>
-              <ul className="space-y-2 text-sm">
-                <li><a href="#" className="hover:text-white">Privacy</a></li>
-                <li><a href="#" className="hover:text-white">Terms</a></li>
-                <li><a href="#" className="hover:text-white">License</a></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold text-white mb-4">Socials</h4>
-              <ul className="space-y-2 text-sm">
-                <li><a href="https://discord.gg/EytdFfRC" target="_blank" rel="noreferrer" className="hover:text-white">Discord</a></li>
-                {/* <li><a href="#" className="hover:text-white">X</a></li> */}
-                {/* <li><a href="#" className="hover:text-white">Instagram</a></li> */}
-              </ul>
-            </div>
-          </div>
-          
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
-            <p>© 2026 SABHUKU AI. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

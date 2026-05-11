@@ -16,6 +16,7 @@ import { ErrorPage } from "./components/ErrorPage";
 import { RequireAuth } from "./components/RequireAuth";
 import { TutorialStudioPage } from "./components/TutorialStudioPage";
 import { TutorialsRedirectPage } from "./components/TutorialsRedirectPage";
+import { AboutUs } from "./components/About/OurTeam";
 
 export const router = createBrowserRouter([
   {
@@ -34,13 +35,14 @@ export const router = createBrowserRouter([
       { path: "community/tutorials/tags/:slug", Component: TutorialsRedirectPage },
       { path: "community/tutorials/authors/:publicUsername", Component: TutorialsRedirectPage },
       { path: "datasets/:publicUsername/:datasetSlug", Component: DatasetPage },
+      { path: "about/our-team/", Component: AboutUs },
       {
         Component: RequireAuth,
         children: [
           { path: "dashboard", Component: Dashboard },
           { path: "models", Component: ModelsPage },
           { path: "datasets", Component: DatasetsPage },
-          { path: "learning", Component: LearningPage },
+         /* { path: "learning", Component: LearningPage }, */
           { path: "tutorials/studio/new", Component: TutorialStudioPage },
           { path: "tutorials/studio/:slug", Component: TutorialStudioPage },
           { path: "profile", Component: ProfilePage },
