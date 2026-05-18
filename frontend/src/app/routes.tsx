@@ -42,7 +42,7 @@ export const router = createBrowserRouter([
           { path: "dashboard", Component: Dashboard },
           { path: "models", Component: ModelsPage },
           { path: "datasets", Component: DatasetsPage },
-         /* { path: "learning", Component: LearningPage }, */
+          { path: "learning", Component: LearningPage },
           { path: "tutorials/studio/new", Component: TutorialStudioPage },
           { path: "tutorials/studio/:slug", Component: TutorialStudioPage },
           { path: "profile", Component: ProfilePage },
