@@ -1,0 +1,20 @@
+services:
+  llm:
+    build:
+      context: .
+    ports:
+      - "${LLM_PORT:-8001}:8000"
+    environment:
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-qwen}
+      LLM_MODEL_ID: ${LLM_MODEL_ID:-Qwen/Qwen2.5-1.5B-Instruct}
+      LLM_DEVICE: ${LLM_DEVICE:-auto}
+      LLM_DTYPE: ${LLM_DTYPE:-auto}
+      LLM_TRUST_REMOTE_CODE: ${LLM_TRUST_REMOTE_CODE:-true}
+      HF_HOME: /models/huggingface
+      TRANSFORMERS_CACHE: /models/huggingface
+    volumes:
+      - llm_hf_cache:/models/huggingface
+    restart: unless-stopped
+
+volumes:
+  llm_hf_cache:
