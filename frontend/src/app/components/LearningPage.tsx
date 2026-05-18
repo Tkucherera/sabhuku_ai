@@ -278,7 +278,7 @@ export function LearningPage() {
           </p>
         </div>
 
-        {/* Learning Paths */}
+        {/* Learning Paths 
         <div className="mb-8">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Your Learning Paths</h2>
           <div className="grid md:grid-cols-3 gap-6">
@@ -312,7 +312,7 @@ export function LearningPage() {
           </div>
         </div>
 
-        {/* Courses Section */}
+        {/* Courses Section 
         <div>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl font-bold text-gray-900">All Courses</h2>
@@ -414,7 +414,7 @@ export function LearningPage() {
           </div>
         </div>
 
-        {/* Achievements Section */}
+        {/* Achievements Section 
         <div className="mt-12">
           <h2 className="text-xl font-bold text-gray-900 mb-6">Your Achievements</h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
@@ -450,7 +450,9 @@ export function LearningPage() {
               <div className="text-sm text-gray-600">Rank</div>
             </div>
           </div>
+          
         </div>
+        */}
       </div>
     </PlatformLayout>
   );
