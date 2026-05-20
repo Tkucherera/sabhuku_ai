@@ -12,10 +12,23 @@ from django.views.decorators.csrf import csrf_exempt
 
 from .models import HardwareProfile, ModelProfile
 from .serializers import (
+    ComposeSpecRequestSerializer,
+    DeploymentCreateSerializer,
+    DeploymentPlanRequestSerializer,
     HardwareRecommendationRequestSerializer,
     HardwareRecommendationResponseSerializer,
     HardwareProfileSerializer,
+    ModelImageDeploymentSerializer,
+    ModelImageSerializer,
     ModelProfileSerializer,
+)
+from .models import ModelImageDeployment
+from .utils.control_plane import (
+    create_compose_spec,
+    create_deployment_plan,
+    create_deployments,
+    dataclass_to_dict,
+    sync_model_images_from_manifests,
 )
 from .utils.hardware_scoring import HardwareSelector, generate_deploy_config
 from .utils.model_profiler import create_profiler
@@ -77,6 +90,31 @@ def _scored_instance_to_dict(scored_instance) -> dict:
         "vram_headroom": scored_instance.vram_headroom,
         "notes": instance.notes,
     }
+
+
+def _parse_json_body(request):
+    try:
+        return json.loads(request.body or "{}"), None
+    except json.JSONDecodeError:
+        return None, JsonResponse({"detail": "Invalid JSON payload."}, status=400)
+
+
+def _authenticated_user(request):
+    if getattr(request, "user", None) and request.user.is_authenticated:
+        return request.user, None
+
+    try:
+        from rest_framework_simplejwt.authentication import JWTAuthentication
+
+        authenticated = JWTAuthentication().authenticate(request)
+    except Exception:
+        authenticated = None
+
+    if authenticated is None:
+        return None, JsonResponse({"detail": "Authentication credentials were not provided."}, status=401)
+
+    user, _token = authenticated
+    return user, None
 
 
 async def _persist_recommendation(payload, source_kind, profile, selection):
@@ -197,3 +235,169 @@ async def model_profile_detail(request, profile_id: int):
         "top_recommendation": hardware_profile.recommendation_data,
     }
     return JsonResponse(response_data, status=200)
+
+
+@csrf_exempt
+def control_plane_images(request):
+    if request.method == "GET":
+        images = sync_model_images_from_manifests()
+        return JsonResponse(
+            {
+                "count": len(images),
+                "images": ModelImageSerializer(images, many=True).data,
+            },
+            status=200,
+        )
+
+    if request.method == "POST":
+        _user, auth_response = _authenticated_user(request)
+        if auth_response:
+            return auth_response
+
+        images = sync_model_images_from_manifests()
+        return JsonResponse(
+            {
+                "detail": "Model image manifests synced.",
+                "count": len(images),
+                "images": ModelImageSerializer(images, many=True).data,
+            },
+            status=200,
+        )
+
+    return JsonResponse({"detail": "Method not allowed."}, status=405)
+
+
+@csrf_exempt
+def control_plane_deployment_plan(request):
+    if request.method != "POST":
+        return JsonResponse({"detail": "Method not allowed."}, status=405)
+
+    payload, error_response = _parse_json_body(request)
+    if error_response:
+        return error_response
+
+    serializer = DeploymentPlanRequestSerializer(data=payload)
+    if not serializer.is_valid():
+        return JsonResponse(serializer.errors, status=400)
+
+    try:
+        plan = create_deployment_plan(**serializer.validated_data)
+    except ValueError as exc:
+        return JsonResponse({"detail": str(exc)}, status=400)
+
+    return JsonResponse(dataclass_to_dict(plan), status=200)
+
+
+@csrf_exempt
+def control_plane_deployments(request):
+    user, auth_response = _authenticated_user(request)
+    if auth_response:
+        return auth_response
+
+    if request.method == "GET":
+        deployments = ModelImageDeployment.objects.filter(owner=user).select_related("model_image")
+        return JsonResponse(
+            {
+                "count": deployments.count(),
+                "deployments": ModelImageDeploymentSerializer(deployments, many=True).data,
+            },
+            status=200,
+        )
+
+    if request.method != "POST":
+        return JsonResponse({"detail": "Method not allowed."}, status=405)
+
+    payload, error_response = _parse_json_body(request)
+    if error_response:
+        return error_response
+
+    serializer = DeploymentCreateSerializer(data=payload)
+    if not serializer.is_valid():
+        return JsonResponse(serializer.errors, status=400)
+
+    try:
+        deployments = create_deployments(owner=user, **serializer.validated_data)
+    except ValueError as exc:
+        return JsonResponse({"detail": str(exc)}, status=400)
+
+    return JsonResponse(
+        {
+            "count": len(deployments),
+            "deployments": ModelImageDeploymentSerializer(deployments, many=True).data,
+        },
+        status=201,
+    )
+
+
+@csrf_exempt
+def control_plane_deployment_detail(request, deployment_id: int):
+    user, auth_response = _authenticated_user(request)
+    if auth_response:
+        return auth_response
+
+    try:
+        deployment = ModelImageDeployment.objects.select_related("model_image").get(
+            pk=deployment_id,
+            owner=user,
+        )
+    except ModelImageDeployment.DoesNotExist:
+        return JsonResponse({"detail": "Deployment not found."}, status=404)
+
+    if request.method != "GET":
+        return JsonResponse({"detail": "Method not allowed."}, status=405)
+
+    return JsonResponse(ModelImageDeploymentSerializer(deployment).data, status=200)
+
+
+@csrf_exempt
+def control_plane_destroy_deployment(request, deployment_id: int):
+    user, auth_response = _authenticated_user(request)
+    if auth_response:
+        return auth_response
+
+    if request.method != "POST":
+        return JsonResponse({"detail": "Method not allowed."}, status=405)
+
+    try:
+        deployment = ModelImageDeployment.objects.select_related("model_image").get(
+            pk=deployment_id,
+            owner=user,
+        )
+    except ModelImageDeployment.DoesNotExist:
+        return JsonResponse({"detail": "Deployment not found."}, status=404)
+
+    deployment.status = ModelImageDeployment.STATUS_DESTROYED
+    deployment.save(update_fields=["status", "updated_at"])
+    return JsonResponse(ModelImageDeploymentSerializer(deployment).data, status=200)
+
+
+@csrf_exempt
+def control_plane_compose_spec(request):
+    user, auth_response = _authenticated_user(request)
+    if auth_response:
+        return auth_response
+
+    if request.method != "POST":
+        return JsonResponse({"detail": "Method not allowed."}, status=405)
+
+    payload, error_response = _parse_json_body(request)
+    if error_response:
+        return error_response
+
+    serializer = ComposeSpecRequestSerializer(data=payload)
+    if not serializer.is_valid():
+        return JsonResponse(serializer.errors, status=400)
+
+    deployments = list(
+        ModelImageDeployment.objects.filter(
+            owner=user,
+            id__in=serializer.validated_data["deployment_ids"],
+        )
+        .exclude(status=ModelImageDeployment.STATUS_DESTROYED)
+        .select_related("model_image")
+    )
+    if len(deployments) != len(serializer.validated_data["deployment_ids"]):
+        return JsonResponse({"detail": "One or more deployments were not found."}, status=404)
+
+    compose_spec = create_compose_spec(deployments, serializer.validated_data["project_name"])
+    return JsonResponse(compose_spec, status=200)

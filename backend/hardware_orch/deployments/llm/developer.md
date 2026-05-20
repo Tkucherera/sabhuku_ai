@@ -1,66 +1,112 @@
 # Developer Instructions
 
-This folder packages a standalone LLM inference service for Qwen and compatible Hugging Face causal language models.
+The LLM control plane now lives inside the Django `hardware_orch` app. The files in `backend/hardware_orch/deployments/llm/` are model image assets only: manifests, Dockerfiles, model code, and the shared runtime used inside model containers.
 
-## Local Structure
+## Architecture
 
-- `api.py`: FastAPI application with `/health`, `/models`, `/generate`, and `/v1/chat/completions`.
-- `inference.py`: model registry and `LLMInference` facade.
-- `qwen.py`: Qwen/Hugging Face model adapter.
-- `Dockerfile`: deployable container image.
-- `docker-compose.yml`: local container runtime with a persistent Hugging Face cache volume.
+Control-plane code:
 
-## Run With Docker
+- `backend/hardware_orch/utils/control_plane.py`: discovers manifests, syncs database records, assigns ports, creates route/runtime specs, creates user-owned deployment rows, and emits local Docker Compose specs.
+- `backend/hardware_orch/models.py`: stores `ModelImage` and `ModelImageDeployment`.
+- `backend/hardware_orch/views.py`: exposes the Django API endpoints under `/api/hardware/control-plane/`.
+- `backend/hardware_orch/serializers.py`: validates control-plane requests and serializes image/deployment records.
+- `backend/hardware_orch/urls.py`: routes the control-plane endpoints.
 
-```bash
-cd backend/hardware_orch/deployments/llm
-docker compose up --build
-```
+Model-image code:
 
-The API will be available at `http://localhost:8001` by default.
+- `runtime/api.py`: shared FastAPI runtime inside model containers. It is not the control plane.
+- `qwen/model_image.json`: Qwen image manifest.
+- `mzansilm/model_image.json`: MzansiLM image manifest.
+- `qwen/Dockerfile` and `mzansilm/Dockerfile`: model image builds.
 
-## Configuration
+## Database Models
 
-Use environment variables to select the model and runtime behavior:
+`ModelImage` is the registry record for an image. It is synced from `model_image.json` and includes:
 
-- `LLM_MODEL_NAME`: registry key. Defaults to `qwen`.
-- `LLM_MODEL_ID`: Hugging Face model id. Defaults to `Qwen/Qwen2.5-1.5B-Instruct`.
-- `LLM_DEVICE`: passed to `device_map`. Defaults to `auto`.
-- `LLM_DTYPE`: `auto`, `float16`, `bfloat16`, or `float32`.
-- `LLM_TRUST_REMOTE_CODE`: `true` or `false`. Defaults to `true`.
-- `LLM_PORT`: host port for Docker Compose. Defaults to `8001`.
+- `slug`, `name`, `family`
+- Docker image name
+- Docker build context and Dockerfile
+- internal container port and health path
+- runtime environment variables
+- endpoint contract
 
-Example:
+`ModelImageDeployment` is a user-owned deployment plan/record. It includes:
 
-```bash
-LLM_MODEL_ID=Qwen/Qwen2.5-0.5B-Instruct LLM_PORT=8010 docker compose up --build
-```
+- `owner`: Django user who owns the deployment
+- `model_image`: the registered image
+- `provider`: `local-docker`, `kubernetes`, `aws-ecs`, or `gcp-cloud-run`
+- `status`: `planned`, `deploying`, `running`, `destroying`, `destroyed`, or `failed`
+- assigned `host_port`
+- generated `runtime` and `routes`
+- placeholder JSON fields for `quota`, `billing`, and `iam`
 
-## Add Another LLM
-
-1. Create a new adapter class with a `generate(messages, generation_config)` method.
-2. Add a loader function in `inference.py`.
-3. Register it in `MODEL_REGISTRY`.
-4. Set `LLM_MODEL_NAME` to the new registry key.
-
-Keep adapters import-safe. Do not run test prompts or load models at module import time unless the API explicitly asks for it.
-
-## API Contract
-
-Simple generation:
+## Run Migrations
 
 ```bash
-curl -X POST http://localhost:8001/generate \
-  -H "Content-Type: application/json" \
-  -d '{"messages":[{"role":"user","content":"What is the capital of Zimbabwe?"}]}'
+cd backend
+python manage.py migrate
 ```
 
-OpenAI-style chat completion:
+## Sync Image Manifests
+
+Manifest sync happens automatically when planning if no images exist yet, but developers can explicitly sync:
 
 ```bash
-curl -X POST http://localhost:8001/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"messages":[{"role":"user","content":"Write a short greeting in Shona."}]}'
+curl -X POST http://localhost/api/hardware/control-plane/images/ \
+  -H "Authorization: Bearer <token>"
 ```
 
-Streaming is not implemented yet. Requests with `"stream": true` return `400`.
+## Add Another Model Image
+
+Create a folder under `backend/hardware_orch/deployments/llm/` and add a `model_image.json`:
+
+```json
+{
+  "slug": "my-model",
+  "name": "My Model",
+  "family": "llm",
+  "image": "registry.example.com/sabhuku/my-model:latest",
+  "context": ".",
+  "dockerfile": "my-model/Dockerfile",
+  "internal_port": 8000,
+  "health_path": "/health",
+  "env": {
+    "LLM_MODEL_PATH": "/app/model",
+    "LLM_MODEL_MODULE": "my_model",
+    "LLM_MODEL_CLASS": "MyModel"
+  },
+  "endpoints": [
+    {
+      "name": "generate",
+      "method": "POST",
+      "public_path": "/generate",
+      "upstream_path": "/generate"
+    }
+  ]
+}
+```
+
+The control plane reads this manifest. The image itself only needs to expose the declared endpoints.
+
+## Shared Model Runtime
+
+Model containers can reuse `runtime/api.py` instead of copying API code into every model folder. The Dockerfile should copy `runtime/` and the model module, then set:
+
+- `LLM_MODEL_PATH`: folder containing the model Python file inside the container.
+- `LLM_MODEL_MODULE`: Python module name to import.
+- `LLM_MODEL_CLASS`: class to instantiate.
+
+The runtime exposes `/health`, `/generate`, and `/v1/chat/completions`, then adapts calls to the model class' `generate` method.
+
+## Provider Integration
+
+Today, provider-specific deployment is represented as data in `ModelImageDeployment.runtime` and `ModelImageDeployment.routes`. The next layer should add provider executors that consume those fields and update:
+
+- `status`
+- `provider_resource_id`
+- `metadata`
+- `quota`
+- `billing`
+- `iam`
+
+Keep provider APIs out of model images. The control plane owns identity, policy, quota, billing, and reconciliation.

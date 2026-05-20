@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 
 class ModelProfile(models.Model):
@@ -59,3 +60,94 @@ class HardwareProfile(models.Model):
 
     def __str__(self):
         return f"{self.provider}:{self.instance_name}"
+
+
+class ModelImage(models.Model):
+    slug = models.SlugField(max_length=120, unique=True)
+    name = models.CharField(max_length=255)
+    family = models.CharField(max_length=64, default="llm")
+    image = models.CharField(max_length=512)
+    context = models.CharField(max_length=512)
+    dockerfile = models.CharField(max_length=512)
+    internal_port = models.PositiveIntegerField(default=8000)
+    health_path = models.CharField(max_length=255, default="/health")
+    env = models.JSONField(default=dict, blank=True)
+    endpoints = models.JSONField(default=list, blank=True)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["slug"]
+
+    def __str__(self):
+        return self.slug
+
+
+class ModelImageDeployment(models.Model):
+    STATUS_PLANNED = "planned"
+    STATUS_DEPLOYING = "deploying"
+    STATUS_RUNNING = "running"
+    STATUS_DESTROYING = "destroying"
+    STATUS_DESTROYED = "destroyed"
+    STATUS_FAILED = "failed"
+    STATUS_CHOICES = [
+        (STATUS_PLANNED, "Planned"),
+        (STATUS_DEPLOYING, "Deploying"),
+        (STATUS_RUNNING, "Running"),
+        (STATUS_DESTROYING, "Destroying"),
+        (STATUS_DESTROYED, "Destroyed"),
+        (STATUS_FAILED, "Failed"),
+    ]
+
+    PROVIDER_LOCAL_DOCKER = "local-docker"
+    PROVIDER_KUBERNETES = "kubernetes"
+    PROVIDER_AWS_ECS = "aws-ecs"
+    PROVIDER_GCP_CLOUD_RUN = "gcp-cloud-run"
+    PROVIDER_CHOICES = [
+        (PROVIDER_LOCAL_DOCKER, "Local Docker"),
+        (PROVIDER_KUBERNETES, "Kubernetes"),
+        (PROVIDER_AWS_ECS, "AWS ECS"),
+        (PROVIDER_GCP_CLOUD_RUN, "GCP Cloud Run"),
+    ]
+
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="model_image_deployments",
+        on_delete=models.CASCADE,
+    )
+    model_image = models.ForeignKey(
+        ModelImage,
+        related_name="deployments",
+        on_delete=models.PROTECT,
+    )
+    provider = models.CharField(
+        max_length=32,
+        choices=PROVIDER_CHOICES,
+        default=PROVIDER_LOCAL_DOCKER,
+    )
+    status = models.CharField(max_length=32, choices=STATUS_CHOICES, default=STATUS_PLANNED)
+    service_name = models.CharField(max_length=255)
+    host_port = models.PositiveIntegerField(null=True, blank=True)
+    public_host = models.CharField(max_length=512, default="http://localhost")
+    runtime = models.JSONField(default=dict, blank=True)
+    routes = models.JSONField(default=list, blank=True)
+    provider_resource_id = models.CharField(max_length=512, blank=True)
+    quota = models.JSONField(default=dict, blank=True)
+    billing = models.JSONField(default=dict, blank=True)
+    iam = models.JSONField(default=dict, blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["owner", "status"]),
+            models.Index(fields=["provider", "status"]),
+            models.Index(fields=["host_port"]),
+        ]
+
+    def __str__(self):
+        return f"{self.owner_id}:{self.model_image.slug}:{self.status}"

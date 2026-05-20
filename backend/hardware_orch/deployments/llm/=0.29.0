@@ -1,0 +1,28 @@
+Collecting uvicorn[standard]
+  Downloading uvicorn-0.47.0-py3-none-any.whl.metadata (6.7 kB)
+Requirement already satisfied: click>=7.0 in /home/tinashe/Desktop/projects/sabhuku_ai/backend/venv/lib/python3.12/site-packages (from uvicorn[standard]) (8.3.2)
+Requirement already satisfied: h11>=0.8 in /home/tinashe/Desktop/projects/sabhuku_ai/backend/venv/lib/python3.12/site-packages (from uvicorn[standard]) (0.16.0)
+Collecting httptools>=0.6.3 (from uvicorn[standard])
+  Using cached httptools-0.7.1-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (3.5 kB)
+Collecting python-dotenv>=0.13 (from uvicorn[standard])
+  Using cached python_dotenv-1.2.2-py3-none-any.whl.metadata (27 kB)
+Requirement already satisfied: pyyaml>=5.1 in /home/tinashe/Desktop/projects/sabhuku_ai/backend/venv/lib/python3.12/site-packages (from uvicorn[standard]) (6.0.3)
+Collecting uvloop>=0.15.1 (from uvicorn[standard])
+  Using cached uvloop-0.22.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (4.9 kB)
+Collecting watchfiles>=0.20 (from uvicorn[standard])
+  Downloading watchfiles-1.2.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.9 kB)
+Collecting websockets>=10.4 (from uvicorn[standard])
+  Using cached websockets-16.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (6.8 kB)
+Requirement already satisfied: anyio>=3.0.0 in /home/tinashe/Desktop/projects/sabhuku_ai/backend/venv/lib/python3.12/site-packages (from watchfiles>=0.20->uvicorn[standard]) (4.13.0)
+Requirement already satisfied: idna>=2.8 in /home/tinashe/Desktop/projects/sabhuku_ai/backend/venv/lib/python3.12/site-packages (from anyio>=3.0.0->watchfiles>=0.20->uvicorn[standard]) (3.11)
+Requirement already satisfied: typing_extensions>=4.5 in /home/tinashe/Desktop/projects/sabhuku_ai/backend/venv/lib/python3.12/site-packages (from anyio>=3.0.0->watchfiles>=0.20->uvicorn[standard]) (4.15.0)
+Using cached httptools-0.7.1-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (517 kB)
+Using cached python_dotenv-1.2.2-py3-none-any.whl (22 kB)
+Using cached uvloop-0.22.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (4.4 MB)
+Downloading watchfiles-1.2.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (456 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 456.4/456.4 kB 4.9 MB/s eta 0:00:00
+Using cached websockets-16.0-cp312-cp312-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (184 kB)
+Downloading uvicorn-0.47.0-py3-none-any.whl (71 kB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 71.3/71.3 kB 7.9 MB/s eta 0:00:00
+Installing collected packages: websockets, uvloop, uvicorn, python-dotenv, httptools, watchfiles
+Successfully installed httptools-0.7.1 python-dotenv-1.2.2 uvicorn-0.47.0 uvloop-0.22.1 watchfiles-1.2.0 websockets-16.0

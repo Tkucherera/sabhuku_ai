@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 from django.conf import settings
 from rest_framework import serializers
 
-from .models import HardwareProfile, ModelProfile
+from .models import HardwareProfile, ModelImage, ModelImageDeployment, ModelProfile
 
 
 class HardwareRecommendationRequestSerializer(serializers.Serializer):
@@ -89,3 +89,85 @@ class HardwareRecommendationResponseSerializer(serializers.Serializer):
     hardware_profile = HardwareProfileSerializer()
     profile_summary = serializers.CharField()
     top_recommendation = serializers.DictField()
+
+
+class ModelImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ModelImage
+        fields = [
+            "id",
+            "slug",
+            "name",
+            "family",
+            "image",
+            "context",
+            "dockerfile",
+            "internal_port",
+            "health_path",
+            "env",
+            "endpoints",
+            "description",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class DeploymentPlanRequestSerializer(serializers.Serializer):
+    models = serializers.ListField(
+        child=serializers.SlugField(),
+        required=False,
+        allow_empty=False,
+    )
+    provider = serializers.ChoiceField(
+        choices=[
+            ModelImageDeployment.PROVIDER_LOCAL_DOCKER,
+            ModelImageDeployment.PROVIDER_KUBERNETES,
+            ModelImageDeployment.PROVIDER_AWS_ECS,
+            ModelImageDeployment.PROVIDER_GCP_CLOUD_RUN,
+        ],
+        default=ModelImageDeployment.PROVIDER_LOCAL_DOCKER,
+    )
+    public_host = serializers.URLField(default="http://localhost")
+    host_base_port = serializers.IntegerField(default=8100, min_value=1, max_value=65535)
+
+
+class DeploymentCreateSerializer(DeploymentPlanRequestSerializer):
+    pass
+
+
+class ComposeSpecRequestSerializer(serializers.Serializer):
+    deployment_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        allow_empty=False,
+    )
+    project_name = serializers.SlugField(default="sabhuku-llm")
+
+
+class ModelImageDeploymentSerializer(serializers.ModelSerializer):
+    owner = serializers.PrimaryKeyRelatedField(read_only=True)
+    model_image = ModelImageSerializer(read_only=True)
+
+    class Meta:
+        model = ModelImageDeployment
+        fields = [
+            "id",
+            "owner",
+            "model_image",
+            "provider",
+            "status",
+            "service_name",
+            "host_port",
+            "public_host",
+            "runtime",
+            "routes",
+            "provider_resource_id",
+            "quota",
+            "billing",
+            "iam",
+            "metadata",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields

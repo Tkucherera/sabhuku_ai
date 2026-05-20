@@ -1,16 +1,33 @@
 from __future__ import annotations
 
+import importlib
+import inspect
 import os
+import sys
 import time
 import uuid
-from threading import Lock
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from inference import LLMInference, MODEL_REGISTRY
-from qwen import DEFAULT_QWEN_MODEL_ID, GenerationConfig
+
+MODEL_PATH = Path(os.getenv("LLM_MODEL_PATH", "/app/model"))
+MODEL_MODULE = os.getenv("LLM_MODEL_MODULE", "model")
+MODEL_CLASS = os.getenv("LLM_MODEL_CLASS", "Model")
+
+if str(MODEL_PATH) not in sys.path:
+    sys.path.insert(0, str(MODEL_PATH))
+
+
+@dataclass(frozen=True)
+class GenerationConfig:
+    max_new_tokens: int = 256
+    temperature: float = 0.7
+    top_p: float = 0.9
+    do_sample: bool = True
 
 
 class ChatMessage(BaseModel):
@@ -20,8 +37,6 @@ class ChatMessage(BaseModel):
 
 class GenerateRequest(BaseModel):
     messages: list[ChatMessage] = Field(min_length=1)
-    model: str | None = None
-    model_id: str | None = None
     max_new_tokens: int = Field(default=256, ge=1, le=4096)
     temperature: float = Field(default=0.7, ge=0.0, le=2.0)
     top_p: float = Field(default=0.9, ge=0.0, le=1.0)
@@ -30,7 +45,6 @@ class GenerateRequest(BaseModel):
 
 class GenerateResponse(BaseModel):
     model: str
-    model_id: str
     response: str
 
 
@@ -53,39 +67,43 @@ class ChatCompletionResponse(BaseModel):
 
 
 app = FastAPI(
-    title="Sabhuku LLM Inference API",
+    title="Sabhuku Model Runtime",
     version="0.1.0",
-    description="Containerized API for Qwen or compatible Hugging Face causal LLMs.",
+    description="Shared model-image runtime API.",
 )
 
-_inference: LLMInference | None = None
-_inference_key: tuple[str, str] | None = None
-_model_lock = Lock()
+_model = None
 
 
-def _default_model_name() -> str:
-    return os.getenv("LLM_MODEL_NAME", "qwen")
+def _load_model():
+    global _model
+    if _model is None:
+        module = importlib.import_module(MODEL_MODULE)
+        model_class = getattr(module, MODEL_CLASS)
+        _model = model_class()
+    return _model
 
 
-def _default_model_id() -> str:
-    return os.getenv("LLM_MODEL_ID", DEFAULT_QWEN_MODEL_ID)
+def _messages_to_prompt(messages: list[dict[str, str]]) -> str:
+    return "\n".join(f"{message['role']}: {message['content']}" for message in messages)
 
 
-def _get_inference(model_name: str | None, model_id: str | None) -> LLMInference:
-    global _inference, _inference_key
+def _call_generate(model, messages: list[dict[str, str]], config: GenerationConfig) -> str:
+    generate = model.generate
+    parameters = inspect.signature(generate).parameters
 
-    resolved_model_name = model_name or _default_model_name()
-    resolved_model_id = model_id or _default_model_id()
-    key = (resolved_model_name, resolved_model_id)
+    if "messages" in parameters or "generation_config" in parameters:
+        try:
+            return generate(messages=messages, generation_config=config)
+        except TypeError:
+            return generate(messages, config)
 
-    with _model_lock:
-        if _inference is None or _inference_key != key:
-            _inference = LLMInference(
-                model_name=resolved_model_name,
-                model_id=resolved_model_id,
-            )
-            _inference_key = key
-        return _inference
+    prompt = _messages_to_prompt(messages)
+    if "max_length" in parameters:
+        return generate(prompt, max_length=config.max_new_tokens)
+    if "max_new_tokens" in parameters:
+        return generate(prompt, max_new_tokens=config.max_new_tokens)
+    return generate(prompt)
 
 
 def _generation_config(request: GenerateRequest) -> GenerationConfig:
@@ -101,36 +119,22 @@ def _generation_config(request: GenerateRequest) -> GenerationConfig:
 def health() -> dict[str, str | bool]:
     return {
         "status": "ok",
-        "model_loaded": _inference is not None,
-        "model": _inference_key[0] if _inference_key else _default_model_name(),
-        "model_id": _inference_key[1] if _inference_key else _default_model_id(),
-    }
-
-
-@app.get("/models")
-def models() -> dict[str, list[str] | str]:
-    return {
-        "default_model": _default_model_name(),
-        "default_model_id": _default_model_id(),
-        "supported_models": sorted(MODEL_REGISTRY),
+        "model_module": MODEL_MODULE,
+        "model_class": MODEL_CLASS,
+        "model_loaded": _model is not None,
     }
 
 
 @app.post("/generate", response_model=GenerateResponse)
 def generate(request: GenerateRequest) -> GenerateResponse:
     try:
-        inference = _get_inference(request.model, request.model_id)
-        response = inference.generate(
+        model = _load_model()
+        response = _call_generate(
+            model,
             [message.model_dump() for message in request.messages],
             _generation_config(request),
         )
-        return GenerateResponse(
-            model=inference.model_name,
-            model_id=inference.model_id,
-            response=response,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        return GenerateResponse(model=MODEL_MODULE, response=response)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"LLM generation failed: {exc}") from exc
 

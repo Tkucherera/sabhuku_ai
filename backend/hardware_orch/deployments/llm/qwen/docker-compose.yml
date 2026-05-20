@@ -1,7 +1,8 @@
 services:
   llm:
     build:
-      context: .
+      context: ..
+      dockerfile: qwen/Dockerfile
     ports:
       - "${LLM_PORT:-8001}:8000"
     environment:

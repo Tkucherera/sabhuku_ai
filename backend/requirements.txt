@@ -21,6 +21,7 @@ django_celery_results==2.6.0
 djangorestframework==3.17.1
 djangorestframework_simplejwt==5.5.1
 django-unfold
+fastapi==0.136.1
 google-api-core==2.30.3
 google-auth==2.49.2
 google-cloud-core==2.5.1

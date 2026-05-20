@@ -9,6 +9,7 @@ creating another adapter with the same interface and registering it in
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -30,11 +31,17 @@ class GenerationConfig:
 class QwenCausalLM:
     def __init__(
         self,
-        model_id: str = DEFAULT_QWEN_MODEL_ID,
-        device: str = "auto",
-        dtype: str = "auto",
-        trust_remote_code: bool = True,
+        model_id: str | None = None,
+        device: str | None = None,
+        dtype: str | None = None,
+        trust_remote_code: bool | None = None,
     ):
+        model_id = model_id or os.getenv("LLM_MODEL_ID", DEFAULT_QWEN_MODEL_ID)
+        device = device or os.getenv("LLM_DEVICE", "auto")
+        dtype = dtype or os.getenv("LLM_DTYPE", "auto")
+        if trust_remote_code is None:
+            trust_remote_code = os.getenv("LLM_TRUST_REMOTE_CODE", "true").lower() == "true"
+
         self.model_id = model_id
         self.tokenizer = AutoTokenizer.from_pretrained(
             model_id,

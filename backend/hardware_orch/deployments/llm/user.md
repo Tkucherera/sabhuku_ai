@@ -1,50 +1,129 @@
 # User Guide
 
-This service lets you send chat messages to a deployed LLM and receive generated text.
+The LLM control plane is part of the Django backend. It registers model images, creates deployment plans, assigns ports/routes, and stores deployments against authenticated users.
 
-## Start The Service
+## Base URL
 
-```bash
-cd backend/hardware_orch/deployments/llm
-docker compose up --build
+All endpoints are under:
+
+```text
+/api/hardware/control-plane/
 ```
 
-Open `http://localhost:8001/health` to confirm the API is running.
+If you are running the existing Docker Compose setup through nginx, use:
 
-## Send A Prompt
+```text
+http://localhost/api/hardware/control-plane/
+```
+
+## Authentication
+
+Creating deployments, syncing manifests, destroying deployments, and generating Compose specs require an authenticated Django user.
+
+Use the same authentication mechanism as the rest of the backend, for example:
 
 ```bash
-curl -X POST http://localhost:8001/generate \
+Authorization: Bearer <access-token>
+```
+
+## List Model Images
+
+```bash
+curl http://localhost/api/hardware/control-plane/images/
+```
+
+This returns the registered image records. The endpoint also syncs local manifests before returning the list.
+
+## Create A Deployment Plan
+
+Planning does not create database deployment rows. It shows what would be deployed.
+
+```bash
+curl -X POST http://localhost/api/hardware/control-plane/deployments/plan/ \
   -H "Content-Type: application/json" \
   -d '{
-    "messages": [
-      {"role": "user", "content": "Explain crop rotation in simple terms."}
-    ],
-    "max_new_tokens": 200
+    "models": ["qwen", "mzansilm"],
+    "provider": "local-docker",
+    "public_host": "http://localhost",
+    "host_base_port": 8100
   }'
 ```
 
-The response will include the model name, model id, and generated text.
+The response contains:
 
-## Use The Chat Endpoint
+- `runtimes`: image, Dockerfile, service name, env, internal port, assigned host port.
+- `routes`: public endpoint URLs and upstream service URLs.
+
+Example behavior:
+
+- `qwen` gets `8100`.
+- `mzansilm` gets `8101`.
+- both containers still listen internally on `8000`.
+
+## Create User-Owned Deployments
+
+This persists deployment records owned by the authenticated user.
 
 ```bash
-curl -X POST http://localhost:8001/v1/chat/completions \
+curl -X POST http://localhost/api/hardware/control-plane/deployments/ \
+  -H "Authorization: Bearer <access-token>" \
   -H "Content-Type: application/json" \
   -d '{
-    "messages": [
-      {"role": "system", "content": "You are a helpful agriculture assistant."},
-      {"role": "user", "content": "How do I identify nitrogen deficiency in maize?"}
-    ]
+    "models": ["qwen", "mzansilm"],
+    "provider": "local-docker",
+    "public_host": "http://localhost",
+    "host_base_port": 8100
   }'
 ```
 
-## Change The Model
+The deployments start with status `planned`. A later provider executor can turn those records into real Kubernetes/ECS/Cloud Run resources and update status to `deploying` or `running`.
 
-Set `LLM_MODEL_ID` before starting Docker Compose:
+## List Your Deployments
 
 ```bash
-LLM_MODEL_ID=Qwen/Qwen2.5-0.5B-Instruct docker compose up --build
+curl http://localhost/api/hardware/control-plane/deployments/ \
+  -H "Authorization: Bearer <access-token>"
 ```
 
-The model must be available from Hugging Face or already present in the container cache.
+Users only see their own deployment records.
+
+## Get One Deployment
+
+```bash
+curl http://localhost/api/hardware/control-plane/deployments/1/ \
+  -H "Authorization: Bearer <access-token>"
+```
+
+## Mark A Deployment Destroyed
+
+```bash
+curl -X POST http://localhost/api/hardware/control-plane/deployments/1/destroy/ \
+  -H "Authorization: Bearer <access-token>"
+```
+
+This updates the database status to `destroyed`. It does not yet call a cloud provider API to delete a real runtime.
+
+## Generate A Local Docker Compose Spec
+
+After creating deployments, you can request a Compose spec for local testing:
+
+```bash
+curl -X POST http://localhost/api/hardware/control-plane/compose/ \
+  -H "Authorization: Bearer <access-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "deployment_ids": [1, 2],
+    "project_name": "sabhuku-llm"
+  }'
+```
+
+The returned JSON is a Docker Compose structure. It is meant for local development; production deployers should translate the same deployment records into the target provider.
+
+## How It Works
+
+1. Each model image folder contains `model_image.json`.
+2. Django syncs those manifests into `ModelImage` rows.
+3. A user requests a plan or deployment for one or more model slugs.
+4. The control plane assigns available host ports, builds route URLs, and creates runtime specs.
+5. If the request creates deployments, Django stores `ModelImageDeployment` rows owned by the user.
+6. Future quota, billing, IAM, API keys, and provider reconciliation can use those database records.

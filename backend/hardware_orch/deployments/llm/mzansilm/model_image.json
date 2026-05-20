@@ -1,0 +1,31 @@
+{
+  "slug": "mzansilm",
+  "name": "MzansiLM 125M",
+  "family": "llm",
+  "image": "sabhuku/llm-mzansilm:local",
+  "context": ".",
+  "dockerfile": "mzansilm/Dockerfile",
+  "internal_port": 8000,
+  "health_path": "/health",
+  "description": "MzansiLM model image for South African language generation.",
+  "env": {
+    "LLM_MODEL_NAME": "mzansilm",
+    "LLM_MODEL_ID": "/app/model/mzansilm-125m",
+    "HF_HOME": "/models/huggingface",
+    "TRANSFORMERS_CACHE": "/models/huggingface"
+  },
+  "endpoints": [
+    {
+      "name": "generate",
+      "method": "POST",
+      "public_path": "/generate",
+      "upstream_path": "/generate"
+    },
+    {
+      "name": "chat_completions",
+      "method": "POST",
+      "public_path": "/v1/chat/completions",
+      "upstream_path": "/v1/chat/completions"
+    }
+  ]
+}
