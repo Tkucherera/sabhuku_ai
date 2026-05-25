@@ -362,6 +362,7 @@ export function TutorialStudioPage() {
   const { token } = useAuth();
   const navigate = useNavigate();
   const { slug } = useParams();
+  const [currentSlug, setCurrentSlug] = useState(slug ?? "");
   const markdownRef = useRef<HTMLTextAreaElement>(null);
 
   const [form, setForm] = useState<TutorialFormState>(initialForm);
@@ -385,6 +386,10 @@ export function TutorialStudioPage() {
 
   const [editorMode, setEditorMode] = useState<EditorMode>("rich");
   const [markdownTab, setMarkdownTab] = useState<PreviewTab>("write");
+
+  useEffect(() => {
+    setCurrentSlug(slug ?? "");
+  }, [slug]);
 
 
   // -------------------------------------------------------------------------
@@ -449,9 +454,9 @@ export function TutorialStudioPage() {
   useEffect(() => {
     let cancelled = false;
     const load = async () => {
-      if (!slug || !token) return;
+      if (!currentSlug || !token) return;
       try {
-        const tutorial = await fetchTutorialBySlug(slug, token);
+        const tutorial = await fetchTutorialBySlug(currentSlug, token);
         if (cancelled) return;
         const formState: TutorialFormState = {
           title: tutorial.title,
@@ -491,7 +496,7 @@ export function TutorialStudioPage() {
     return () => {
       cancelled = true;
     };
-  }, [slug, token, editor]);
+  }, [currentSlug, token, editor]);
 
 
   // -------------------------------------------------------------------------
@@ -517,6 +522,7 @@ export function TutorialStudioPage() {
         excerpt: current.excerpt.trim(),
         body_markdown: md,
         status: current.status === "published" ? "published" : "draft",
+        create_revision: false,
         seo_title: current.seo_title.trim(),
         meta_description: current.meta_description.trim(),
         seo_keywords: current.seo_keywords.trim(),
@@ -535,19 +541,16 @@ export function TutorialStudioPage() {
 
       setAutosaveStatus("saving");
       try {
-        const saved = slug
-          ? await updateTutorial(token, slug, payload)
+        const saved = currentSlug
+          ? await updateTutorial(token, currentSlug, payload)
           : await createTutorial(token, payload);
 
         lastSavedAt.current = new Date();
         setAutosaveStatus("saved");
 
-        if (!slug && saved.slug) {
-          window.history.replaceState(
-            null,
-            "",
-            `/tutorials/studio/${saved.slug}`
-          );
+        if (!currentSlug && saved.slug) {
+          setCurrentSlug(saved.slug);
+          navigate(`/tutorials/studio/${saved.slug}`, { replace: true });
         }
 
         setTimeout(() => setAutosaveStatus("idle"), 3000);
@@ -559,7 +562,7 @@ export function TutorialStudioPage() {
     return () => {
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     };
-  }, [form, editorMode]);
+  }, [form, editorMode, currentSlug, token, editor, navigate]);
 
 
  // -------------------------------------------------------------------------
@@ -764,6 +767,7 @@ export function TutorialStudioPage() {
       cover_image_alt: form.cover_image_alt.trim(),
       thumbnail_image_url: form.thumbnail_image_url.trim(),
       thumbnail_image_path: form.thumbnail_image_path.trim(),
+      create_revision: mode === "published",
       tags: form.tag_input
         .split(",")
         .map((t) => t.trim())
@@ -780,8 +784,8 @@ export function TutorialStudioPage() {
     setNotice(null);
 
     try {
-      const saved = slug
-        ? await updateTutorial(token, slug, payload)
+      const saved = currentSlug
+        ? await updateTutorial(token, currentSlug, payload)
         : await createTutorial(token, payload);
       setForm((prev) => ({
         ...prev,
@@ -794,8 +798,10 @@ export function TutorialStudioPage() {
           ? "Tutorial published successfully."
           : "Draft saved."
       );
-      if (!slug)
+      if (!currentSlug) {
+        setCurrentSlug(saved.slug);
         navigate(`/tutorials/studio/${saved.slug}`, { replace: true });
+      }
     } catch {
       setError("Failed to save tutorial.");
     } finally {
@@ -823,7 +829,7 @@ export function TutorialStudioPage() {
               Back to learning
             </Link>
             <h1 className="mt-3 text-4xl font-bold tracking-tight text-slate-950">
-              {slug ? "Edit tutorial" : "Write a tutorial"}
+              {currentSlug ? "Edit tutorial" : "Write a tutorial"}
             </h1>
             <p className="mt-2 max-w-3xl text-slate-600">
               Create community tutorials with rich text or markdown, images,

@@ -912,6 +912,7 @@ h1 { font-size: clamp(2.7rem, 5vw, 4.6rem); margin-top: 16px; }
     border-top: 1px solid var(--gray-200); flex-wrap: wrap;
   }
   .art-actions__label { font-size: 0.875rem; font-weight: 600; color: var(--gray-500); }
+  .art-like { margin: 0; }
   .art-btn {
     display: inline-flex; align-items: center; gap: 0.4rem;
     padding: 0.45rem 0.875rem; border-radius: 0.5rem;
@@ -921,6 +922,27 @@ h1 { font-size: clamp(2.7rem, 5vw, 4.6rem); margin-top: 16px; }
     transition: background 0.15s; white-space: nowrap;
   }
   .art-btn:hover { background: var(--gray-50); }
+  .art-btn:disabled { cursor: wait; opacity: 0.75; }
+  .art-like__button.is-liked {
+    border-color: #fecdd3;
+    background: #fff1f2;
+    color: #be123c;
+  }
+  .art-like__count {
+    display: inline-flex;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: var(--gray-100);
+    color: var(--gray-700);
+    font-size: 0.72rem;
+  }
+  .art-like__button.is-liked .art-like__count {
+    background: #ffe4e6;
+    color: #be123c;
+  }
   .art-btn svg { width: 14px; height: 14px; flex-shrink: 0; }
 
   /* Author card */

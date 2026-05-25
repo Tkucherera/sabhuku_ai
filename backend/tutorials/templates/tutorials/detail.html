@@ -36,7 +36,7 @@
       <div>
         <div class="art-hero__eyebrow">
           {% if tutorial.category %}
-          <a href="{% url 'tutorials:index' %}?category={{ tutorial.category.slug %}" class="art-hero__cat">
+          <a href="{% url 'tutorials:index' %}?category={{ tutorial.category.slug }}" class="art-hero__cat">
             {{ tutorial.category.name }}
           </a>
           {% endif %}
@@ -117,6 +117,16 @@
 
     <!-- Share actions -->
     <div class="art-actions">
+      <form method="post" action="{% url 'tutorials:like' slug=tutorial.slug %}" class="art-like" id="tutorial-like">
+        {% csrf_token %}
+        <button type="submit" class="art-btn art-like__button" aria-label="Like this tutorial">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.08C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+          <span>Like</span>
+          <span class="art-like__count" data-like-count>{{ tutorial.likes }}</span>
+        </button>
+      </form>
       <span class="art-actions__label">Share:</span>
       <a href="https://twitter.com/intent/tweet?url={{ canonical_url|urlencode }}&text={{ tutorial.title|urlencode }}"
          target="_blank" rel="noopener noreferrer" class="art-btn" aria-label="Share on X">
@@ -263,6 +273,31 @@
       img.dataset.fb = '1'; img.src = fallback;
     });
   });
+
+  var likeForm = document.getElementById('tutorial-like');
+  if (likeForm) {
+    likeForm.addEventListener('submit', function (event) {
+      event.preventDefault();
+      var button = likeForm.querySelector('button');
+      var count = likeForm.querySelector('[data-like-count]');
+      if (button) button.disabled = true;
+      fetch(likeForm.action, {
+        method: 'POST',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': likeForm.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        credentials: 'same-origin'
+      })
+        .then(function (response) { return response.ok ? response.json() : Promise.reject(); })
+        .then(function (data) {
+          if (count) count.textContent = data.likes;
+          if (button) button.classList.add('is-liked');
+        })
+        .catch(function () { likeForm.submit(); })
+        .finally(function () { if (button) button.disabled = false; });
+    });
+  }
 
   /* TOC active on scroll */
   var links    = Array.from(document.querySelectorAll('[data-toc]'));

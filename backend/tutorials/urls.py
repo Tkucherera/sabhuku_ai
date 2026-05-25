@@ -15,6 +15,7 @@ urlpatterns = [
     path("community/tutorials/sitemap.xml", views.tutorial_sitemap, name="sitemap"),
     path("community/tutorials/tags/<slug:slug>/", views.tutorial_tag_archive, name="tag"),
     path("community/tutorials/authors/<slug:public_username>/", views.tutorial_author_archive, name="author"),
+    path("community/tutorials/<slug:slug>/like/", views.tutorial_like, name="like"),
     path("community/tutorials/<slug:slug>/", views.tutorial_detail, name="detail"),
     path("api/", include(router.urls)),
 ]

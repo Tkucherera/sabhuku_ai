@@ -47,6 +47,7 @@ class TutorialSerializer(serializers.ModelSerializer):
             "cover_image_alt",
             "thumbnail_image_url",
             "thumbnail_image_path",
+            "likes",
         )
 
     def get_author_name(self, obj):
@@ -72,6 +73,7 @@ class TutorialSerializer(serializers.ModelSerializer):
 
 class TutorialWriteSerializer(serializers.ModelSerializer):
     tags = serializers.ListField(child=serializers.CharField(max_length=80), required=False, write_only=True)
+    create_revision = serializers.BooleanField(required=False, write_only=True, default=False)
 
     class Meta:
         model = Tutorial
@@ -91,22 +93,29 @@ class TutorialWriteSerializer(serializers.ModelSerializer):
             "thumbnail_image_url",
             "thumbnail_image_path",
             "tags",
+            "create_revision",
         )
         read_only_fields = ("id",)
 
     def create(self, validated_data):
         tag_names = normalize_tag_names(validated_data.pop("tags", []))
+        create_revision = validated_data.pop("create_revision", False)
         tutorial = Tutorial.objects.create(**validated_data)
         self._sync_tags(tutorial, tag_names)
+        if create_revision:
+            tutorial.record_publish_revision()
         return tutorial
 
     def update(self, instance, validated_data):
         tag_names = validated_data.pop("tags", None)
+        create_revision = validated_data.pop("create_revision", False)
         for field, value in validated_data.items():
             setattr(instance, field, value)
         instance.save()
         if tag_names is not None:
             self._sync_tags(instance, normalize_tag_names(tag_names))
+        if create_revision:
+            instance.record_publish_revision()
         return instance
 
     def _sync_tags(self, tutorial, tag_names):
@@ -127,6 +136,7 @@ class TutorialListSerializer(serializers.ModelSerializer):
     tags = TutorialTagSerializer(many=True, read_only=True)
     public_tags = serializers.SerializerMethodField()
     cover_image = serializers.SerializerMethodField()
+    likes = serializers.SerializerMethodField()
 
     class Meta:
         model = Tutorial
@@ -161,7 +171,9 @@ class TutorialListSerializer(serializers.ModelSerializer):
 
     def get_cover_image(self, obj):
         return obj.cover_storage_url
-    
+
+    def get_likes(self, obj):
+        return obj.likes
 
 class TutorialAudioSerializer(serializers.ModelSerializer):
     class Meta:

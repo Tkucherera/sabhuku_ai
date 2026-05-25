@@ -7,13 +7,14 @@ from urllib.parse import quote
 
 from django.conf import settings
 from django.contrib.auth.models import User
-from django.http import Http404, HttpResponse
 from django.core.paginator import Paginator
-from django.db.models import Count, Q
+from django.db.models import Count, F, Q
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 from markdown_it import MarkdownIt
 from rest_framework import generics, permissions, serializers, status, viewsets
 from rest_framework.decorators import action
@@ -382,6 +383,16 @@ def tutorial_detail(request, slug):
         }
     )
     return render(request, "tutorials/detail.html", context)
+
+
+@require_POST
+def tutorial_like(request, slug):
+    tutorial = get_object_or_404(Tutorial, slug=slug, status=Tutorial.STATUS_PUBLISHED)
+    Tutorial.objects.filter(pk=tutorial.pk).update(likes=F("likes") + 1)
+    tutorial.refresh_from_db(fields=["likes"])
+    if request.headers.get("x-requested-with") == "XMLHttpRequest":
+        return JsonResponse({"likes": tutorial.likes})
+    return redirect(f"{tutorial.absolute_url}#tutorial-like")
 
 
 def tutorial_tag_archive(request, slug):
