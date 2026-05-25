@@ -185,6 +185,7 @@ export interface Tutorial {
   cover_image_alt: string;
   thumbnail_image_url: string;
   thumbnail_image_path: string;
+  likes: number;
 }
 
 export interface TutorialPayload {
@@ -202,6 +203,7 @@ export interface TutorialPayload {
   thumbnail_image_url: string;
   thumbnail_image_path: string;
   tags: string[];
+  create_revision?: boolean;
 }
 
 

@@ -1,3 +1,5 @@
+import hashlib
+import json
 import math
 import re
 from urllib.parse import quote
@@ -93,6 +95,8 @@ class Tutorial(models.Model):
     last_revised_at = models.DateTimeField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    likes = models.IntegerField(default=0)
+    last_published_revision_hash = models.CharField(max_length=64, blank=True, default="")
 
     class Meta:
         ordering = ["-published_at", "-updated_at", "-id"]
@@ -119,21 +123,7 @@ class Tutorial(models.Model):
         if not self.cover_image_alt:
             self.cover_image_alt = self.title
 
-        if self.pk:
-            previous = Tutorial.objects.filter(pk=self.pk).values(
-                "title",
-                "excerpt",
-                "body_markdown",
-                "cover_image_path",
-                "cover_image_url",
-                "thumbnail_image_path",
-                "thumbnail_image_url",
-                "status",
-            ).first()
-            if previous and any(previous[field] != getattr(self, field) for field in previous):
-                self.revision_number += 1
-                self.last_revised_at = timezone.now()
-        else:
+        if not self.pk:
             self.last_revised_at = timezone.now()
 
         if self.status == self.STATUS_PUBLISHED and not self.published_at:
@@ -145,6 +135,43 @@ class Tutorial(models.Model):
         if inferred != self.auto_tags:
             self.auto_tags = inferred
             super().save(update_fields=["auto_tags"])
+
+    def published_revision_hash(self):
+        payload = {
+            "title": self.title or "",
+            "excerpt": self.excerpt or "",
+            "body_markdown": self.body_markdown or "",
+            "cover_image_path": self.cover_image_path or "",
+            "cover_image_url": self.cover_image_url or "",
+            "cover_image_alt": self.cover_image_alt or "",
+            "thumbnail_image_path": self.thumbnail_image_path or "",
+            "thumbnail_image_url": self.thumbnail_image_url or "",
+            "seo_title": self.seo_title or "",
+            "meta_description": self.meta_description or "",
+            "seo_keywords": self.seo_keywords or "",
+            "tags": sorted(tag.name for tag in self.tags.all()),
+        }
+        encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
+    def record_publish_revision(self):
+        if self.status != self.STATUS_PUBLISHED:
+            return
+
+        revision_hash = self.published_revision_hash()
+        if revision_hash == self.last_published_revision_hash:
+            return
+
+        now = timezone.now()
+        if self.last_published_revision_hash:
+            self.revision_number += 1
+        self.last_published_revision_hash = revision_hash
+        self.last_revised_at = now
+        Tutorial.objects.filter(pk=self.pk).update(
+            revision_number=self.revision_number,
+            last_published_revision_hash=self.last_published_revision_hash,
+            last_revised_at=self.last_revised_at,
+        )
 
     def build_auto_tags(self):
         text = " ".join(

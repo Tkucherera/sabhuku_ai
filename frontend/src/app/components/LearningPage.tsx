@@ -154,9 +154,22 @@ export function LearningPage() {
     }
   };
 
+  const latestSavedTutorials = (items: Tutorial[]) => Array.from(
+    items.reduce((latestByTitle, tutorial) => {
+      const key = tutorial.title.trim().toLowerCase() || tutorial.slug;
+      const existing = latestByTitle.get(key);
+      if (!existing || new Date(tutorial.updated_at).getTime() > new Date(existing.updated_at).getTime()) {
+        latestByTitle.set(key, tutorial);
+      }
+      return latestByTitle;
+    }, new Map<string, Tutorial>())
+  )
+    .map(([, tutorial]) => tutorial)
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
   const visibleTutorials = activeStatus === "all"
-    ? tutorials
-    : tutorials.filter((tutorial) => tutorial.status === activeStatus);
+    ? latestSavedTutorials(tutorials)
+    : latestSavedTutorials(tutorials.filter((tutorial) => tutorial.status === activeStatus));
 
   return (
     <PlatformLayout>
