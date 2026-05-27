@@ -209,7 +209,7 @@ export function SignupPage() {
                   Terms of Service
                 </a>{" "}
                 and{" "}
-                <a href="#" className="text-blue-600 hover:text-blue-700">
+                <a href="/privacy" className="text-blue-600 hover:text-blue-700">
                   Privacy Policy
                 </a>
               </label>
