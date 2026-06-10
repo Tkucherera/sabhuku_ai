@@ -22,6 +22,8 @@ API base path:
 - File upload endpoints return a signed Google Cloud Storage URL plus the storage path to save in your model.
 - Search and filter params are optional unless noted.
 
+Payments are documented separately in `backend/payments/README.md`.
+
 ## Auth
 
 These routes come from `dj_rest_auth` and `dj_rest_auth.registration`.

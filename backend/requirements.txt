@@ -39,6 +39,7 @@ MarkupSafe==3.0.3
 mdurl==0.1.2
 oauthlib==3.3.1
 packaging==26.0
+paynow==1.0.8
 pillow==12.2.0
 prompt_toolkit==3.0.52
 proto-plus==1.27.2

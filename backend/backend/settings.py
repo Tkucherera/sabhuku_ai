@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     'hardware_orch',
     'tutorials',
     'observability.apps.ObservabilityConfig',
+    'payments',
 
     # all auth
     'allauth',
@@ -75,6 +76,8 @@ INSTALLED_APPS = [
 
     # google bucket 
     'storages',
+
+    
 ]
 
 if UNFOLD_INSTALLED:
