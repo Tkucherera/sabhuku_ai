@@ -15,6 +15,7 @@ import { ErrorPage } from "./components/ErrorPage";
 import { RequireAuth } from "./components/RequireAuth";
 import { TutorialStudioPage } from "./components/TutorialStudioPage";
 import { TutorialsRedirectPage } from "./components/TutorialsRedirectPage";
+import { CheckoutForm } from "./components/Payments/CheckoutForm";
 import PrivacyPolicy from "./legal/PrivacyPolicy";
 
 export const router = createBrowserRouter([
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
       { path: "password-reset", Component: PasswordResetRequestPage },
       { path: "password-reset/confirm/:uid/:token", Component: PasswordResetConfirmPage },
       { path: "privacy", Component: PrivacyPolicy },
+      { path: "checkout", Component: CheckoutForm },
       { path: "community/tutorials", Component: TutorialsRedirectPage },
       { path: "community/tutorials/:slug", Component: TutorialsRedirectPage },
       { path: "community/tutorials/tags/:slug", Component: TutorialsRedirectPage },
