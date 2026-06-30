@@ -395,6 +395,10 @@ GS_MEDIA_BUCKET_NAME = os.getenv("GS_MEDIA_BUCKET_NAME", "sabhuku-media")
 MEDIA_URL = f'https://storage.googleapis.com/{GS_MEDIA_BUCKET_NAME}/'
 DEFAULT_FILE_STORAGE = 'storages.backends.gcloud.GoogleCloudStorage'
 
+# Allow larger uploads for tutorial image uploads and file upload endpoints.
+DATA_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv("DATA_UPLOAD_MAX_MEMORY_SIZE", 50 * 1024 * 1024))
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.getenv("FILE_UPLOAD_MAX_MEMORY_SIZE", 50 * 1024 * 1024))
+
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 LOG_DB_LEVEL = os.getenv("LOG_DB_LEVEL", "WARNING")
 

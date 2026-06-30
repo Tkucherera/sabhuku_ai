@@ -913,24 +913,32 @@ export function TutorialStudioPage() {
               <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div className="grid gap-5 md:grid-cols-2">
                   <label className="grid gap-2 md:col-span-2">
-                    <span className="text-sm font-semibold text-slate-800">
-                      Title
-                    </span>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-semibold text-slate-800">
+                        Title
+                      </span>
+                      <span className="text-xs text-slate-500">Max 255 characters</span>
+                    </div>
                     <input
                       value={form.title}
                       onChange={(e) => updateField("title", e.target.value)}
                       placeholder="How to deploy low-latency African language models"
+                      maxLength={255}
                       className="rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500"
                     />
                   </label>
                   <label className="grid gap-2">
-                    <span className="text-sm font-semibold text-slate-800">
-                      Slug
-                    </span>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-semibold text-slate-800">
+                        Slug
+                      </span>
+                      <span className="text-xs text-slate-500">Max 255 characters</span>
+                    </div>
                     <input
                       value={form.slug}
                       onChange={(e) => updateField("slug", e.target.value)}
                       placeholder="auto-generated-if-empty"
+                      maxLength={255}
                       className="rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500"
                     />
                   </label>
@@ -1116,20 +1124,27 @@ export function TutorialStudioPage() {
                 </h2>
                 <div className="mt-4 grid gap-4">
                   <label className="grid gap-2">
-                    <span className="text-sm font-semibold text-slate-800">
-                      SEO title
-                    </span>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-semibold text-slate-800">
+                        SEO title
+                      </span>
+                      <span className="text-xs text-slate-500">Max 70 characters</span>
+                    </div>
                     <input
                       value={form.seo_title}
                       onChange={(e) => updateField("seo_title", e.target.value)}
                       placeholder="Override search result title"
+                      maxLength={70}
                       className="rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500"
                     />
                   </label>
                   <label className="grid gap-2">
-                    <span className="text-sm font-semibold text-slate-800">
-                      Meta description
-                    </span>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-semibold text-slate-800">
+                        Meta description
+                      </span>
+                      <span className="text-xs text-slate-500">Max 160 characters</span>
+                    </div>
                     <textarea
                       value={form.meta_description}
                       onChange={(e) =>
@@ -1137,19 +1152,24 @@ export function TutorialStudioPage() {
                       }
                       rows={4}
                       placeholder="Short search snippet for the article"
+                      maxLength={160}
                       className="rounded-2xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500"
                     />
                   </label>
                   <label className="grid gap-2">
-                    <span className="text-sm font-semibold text-slate-800">
-                      SEO keywords
-                    </span>
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-semibold text-slate-800">
+                        SEO keywords
+                      </span>
+                      <span className="text-xs text-slate-500">Max 255 characters</span>
+                    </div>
                     <input
                       value={form.seo_keywords}
                       onChange={(e) =>
                         updateField("seo_keywords", e.target.value)
                       }
                       placeholder="comma-separated keywords"
+                      maxLength={255}
                       className="rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500"
                     />
                   </label>
@@ -1198,14 +1218,18 @@ export function TutorialStudioPage() {
                       placeholder="https://… or paste URL"
                       className="mb-3 w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500"
                     />
-                    <input
-                      value={form.cover_image_alt}
-                      onChange={(e) =>
-                        updateField("cover_image_alt", e.target.value)
-                      }
-                      placeholder="Cover image alt text"
-                      className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500"
-                    />
+                    <div className="grid gap-2">
+                      <input
+                        value={form.cover_image_alt}
+                        onChange={(e) =>
+                          updateField("cover_image_alt", e.target.value)
+                        }
+                        placeholder="Cover image alt text"
+                        maxLength={255}
+                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition focus:border-blue-500"
+                      />
+                      <span className="text-xs text-slate-500">Max 255 characters</span>
+                    </div>
                   </div>
 
                   {/* Thumbnail */}
